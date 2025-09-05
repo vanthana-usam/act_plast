@@ -24,6 +24,7 @@ const QualityControl = () => {
     'IM02160124BB'
   ];
 
+
   const pdiData = [
     {
       id: 1,

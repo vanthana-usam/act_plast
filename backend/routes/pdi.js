@@ -1,674 +1,16 @@
-// // import express from 'express';
-// // import sql from 'mssql';
-// // import { poolPromise } from '../db.js';
-// // import { v4 as uuidv4 } from 'uuid';
-
-// // const router = express.Router();
-
-// // // =================== GET /api/pdi ===================
-// // router.get('/api/pdi', async (req, res) => {
-// //   try {
-// //     const pool = await poolPromise;
-
-// //     const query = `
-// //       SELECT 
-// //         p.pdiId,
-// //         p.productionCode,
-// //         p.product,
-// //         p.date,
-// //         p.shift,
-// //         p.defectName,
-// //         p.quantity,
-// //         p.inspector,
-// //         p.status,
-// //         p.severity,
-// //         ca.action AS correctiveAction,
-// //         ca.responsible AS correctiveResponsible,
-// //         ca.dueDate AS correctiveDueDate,
-// //         pa.action AS preventiveAction,
-// //         pa.responsible AS preventiveResponsible,
-// //         pa.dueDate AS preventiveDueDate
-// //       FROM PDI p
-// //       LEFT JOIN PDI_CorrectiveActions ca ON ca.pdiId = p.pdiId
-// //       LEFT JOIN PDI_PreventiveActions pa ON pa.pdiId = p.pdiId
-// //       ORDER BY p.date DESC
-// //     `;
-
-// //     const result = await pool.request().query(query);
-
-// //     // Group results by PDI
-// //     const pdiMap = {};
-// //     result.recordset.forEach(row => {
-// //       if (!pdiMap[row.pdiId]) {
-// //         pdiMap[row.pdiId] = {
-// //           pdiId: row.pdiId,
-// //           productionCode: row.productionCode,
-// //           product: row.product,
-// //           date: row.date,
-// //           shift: row.shift,
-// //           defectName: row.defectName,
-// //           quantity: row.quantity,
-// //           inspector: row.inspector,
-// //           status: row.status,
-// //           severity: row.severity,
-// //           correctiveActions: [],
-// //           preventiveActions: []
-// //         };
-// //       }
-
-// //       if (row.correctiveAction) {
-// //         pdiMap[row.pdiId].correctiveActions.push({
-// //           action: row.correctiveAction,
-// //           responsible: row.correctiveResponsible,
-// //           dueDate: row.correctiveDueDate
-// //         });
-// //       }
-
-// //       if (row.preventiveAction) {
-// //         pdiMap[row.pdiId].preventiveActions.push({
-// //           action: row.preventiveAction,
-// //           responsible: row.preventiveResponsible,
-// //           dueDate: row.preventiveDueDate
-// //         });
-// //       }
-// //     });
-
-// //     res.json(Object.values(pdiMap));
-// //   } catch (err) {
-// //     console.error('Error fetching PDI entries:', err);
-// //     res.status(500).json({ error: 'Failed to fetch PDI entries' });
-// //   }
-// // });
-
-// // // =================== POST /api/pdi ===================
-// // router.post('/api/pdi', async (req, res) => {
-// //   const pool = await poolPromise;
-// //   const transaction = new sql.Transaction(pool);
-
-// //   try {
-// //     const {
-// //       productionCode, product, date, shift, defectName, quantity, inspector,
-// //       status = 'Open', severity,
-// //       correctiveActions, preventiveActions
-// //     } = req.body;
-
-// //     // const uuid = generateUUID()(); // new PDI id
-// //     const uuid = uuidv4();
-
-// //     await transaction.begin();
-
-// //     // 1️⃣ Insert PDI entry
-// //     const pdiRequest = new sql.Request(transaction);
-// //     pdiRequest.input('pdiId', sql.UniqueIdentifier, uuid);
-// //     pdiRequest.input('productionCode', sql.VarChar, productionCode);
-// //     pdiRequest.input('product', sql.VarChar, product);
-// //     pdiRequest.input('date', sql.Date, date);
-// //     pdiRequest.input('shift', sql.VarChar, shift);
-// //     pdiRequest.input('defectName', sql.VarChar, defectName);
-// //     pdiRequest.input('quantity', sql.Int, quantity);
-// //     pdiRequest.input('inspector', sql.VarChar, inspector);
-// //     pdiRequest.input('status', sql.VarChar, status);
-// //     pdiRequest.input('severity', sql.VarChar, severity);
-
-// //     const pdiInsertQuery = `
-// //       INSERT INTO PDI (pdiId, productionCode, product, date, shift, defectName, quantity, inspector, status, severity)
-// //       VALUES (@pdiId, @productionCode, @product, @date, @shift, @defectName, @quantity, @inspector, @status, @severity)
-// //     `;
-// //     await pdiRequest.query(pdiInsertQuery);
-
-// //     const pdiId = uuid; // use the generated UUID
-
-// //     // 2️⃣ Insert corrective actions
-// //     for (const action of correctiveActions || []) {
-// //       const correctiveReq = new sql.Request(transaction);
-// //       correctiveReq.input('pdiId', sql.UniqueIdentifier, pdiId);
-// //       correctiveReq.input('action', sql.NVarChar(sql.MAX), action.action);
-// //       correctiveReq.input('responsible', sql.VarChar, action.responsible);
-// //       correctiveReq.input('dueDate', sql.Date, action.dueDate);
-
-// //       await correctiveReq.query(`
-// //         INSERT INTO PDI_CorrectiveActions (pdiId, action, responsible, dueDate)
-// //         VALUES (@pdiId, @action, @responsible, @dueDate)
-// //       `);
-// //     }
-
-// //     // 3️⃣ Insert preventive actions
-// //     for (const action of preventiveActions || []) {
-// //       const preventiveReq = new sql.Request(transaction);
-// //       preventiveReq.input('pdiId', sql.UniqueIdentifier, pdiId);
-// //       preventiveReq.input('action', sql.NVarChar(sql.MAX), action.action);
-// //       preventiveReq.input('responsible', sql.VarChar, action.responsible);
-// //       preventiveReq.input('dueDate', sql.Date, action.dueDate);
-
-// //       await preventiveReq.query(`
-// //         INSERT INTO PDI_PreventiveActions (pdiId, action, responsible, dueDate)
-// //         VALUES (@pdiId, @action, @responsible, @dueDate)
-// //       `);
-// //     }
-
-// //     // 4️⃣ Auto-create a Task if defectName is provided
-// //     if (defectName && defectName.trim() !== '') {
-// //       const taskId = uuidv4();
-// //       const taskReq = new sql.Request(transaction);
-
-// //       taskReq.input('taskId', sql.UniqueIdentifier, taskId);
-// //       taskReq.input('productionCode', sql.VarChar, productionCode || null);
-// //       taskReq.input('taskType', sql.VarChar, 'pdi-defect');
-// //       taskReq.input('title', sql.VarChar, `PDI Defect: ${defectName}`);
-// //       taskReq.input('description', sql.NVarChar(sql.MAX), `Defect found during PDI for product ${product} in shift ${shift}.`);
-// //       taskReq.input('priority', sql.VarChar, severity?.toLowerCase() === 'high' ? 'high' : 'medium');
-
-// //       // 🚨 Make sure frontend sends inspector as employeeId (UUID), not a string name
-// //       taskReq.input('assignedTo', sql.UniqueIdentifier, inspector || null);
-
-// //       taskReq.input('dueDate', sql.Date, date);
-// //       taskReq.input('status', sql.VarChar, 'pending');
-// //       taskReq.input('createdFrom', sql.VarChar, 'pdi');
-// //       taskReq.input('rejectionReason', sql.NVarChar(sql.MAX), null);
-// //       taskReq.input('quantity', sql.Int, quantity || null);
-// //       taskReq.input('maintenanceType', sql.VarChar, null);
-// //       taskReq.input('equipment', sql.VarChar, null);
-
-// //       await taskReq.query(`
-// //     INSERT INTO Tasks (
-// //       taskId, productionCode, taskType, title, description, priority, assignedTo, dueDate,
-// //       status, createdFrom, rejectionReason, quantity, maintenanceType, equipment
-// //     )
-// //     VALUES (
-// //       @taskId, @productionCode, @taskType, @title, @description, @priority, @assignedTo, @dueDate,
-// //       @status, @createdFrom, @rejectionReason, @quantity, @maintenanceType, @equipment
-// //     )
-// //   `);
-// //     }
-
-
-// //     await transaction.commit();
-// //     res.status(201).json({ message: 'PDI entry (and task if defect) added successfully', pdiId });
-
-// //   } catch (err) {
-// //     try { await transaction.rollback(); } catch { }
-// //     console.error('Error adding PDI entry or task:', err);
-// //     res.status(500).json({ error: 'Failed to add PDI entry' });
-// //   }
-// // });
-
-// // export default router;
-
-
-
-// // backend/routes/pdi.js
-// import express from 'express';
-// import sql from 'mssql';
-// import { poolPromise } from '../db.js';
-// import { v4 as uuidv4 } from 'uuid';
-
-// const router = express.Router();
-
-// // =================== GET /api/pdi ===================
-// router.get('/api/pdi', async (req, res) => {
-//   try {
-//     const pool = await poolPromise;
-
-//     const query = `
-//       SELECT 
-//         p.pdiId,
-//         p.productionCode,
-//         p.product,
-//         p.date,
-//         p.shift,
-//         p.defectName,
-//         p.quantity,
-//         p.inspector,
-//         p.status,
-//         p.severity,
-//         ca.action AS correctiveAction,
-//         ca.responsible AS correctiveResponsible,
-//         ca.dueDate AS correctiveDueDate,
-//         pa.action AS preventiveAction,
-//         pa.responsible AS preventiveResponsible,
-//         pa.dueDate AS preventiveDueDate
-//       FROM PDI p
-//       LEFT JOIN PDI_CorrectiveActions ca ON ca.pdiId = p.pdiId
-//       LEFT JOIN PDI_PreventiveActions pa ON pa.pdiId = p.pdiId
-//       ORDER BY p.date DESC
-//     `;
-
-//     const result = await pool.request().query(query);
-
-//     // Group results by PDI
-//     const pdiMap = {};
-//     result.recordset.forEach(row => {
-//       if (!pdiMap[row.pdiId]) {
-//         pdiMap[row.pdiId] = {
-//           pdiId: row.pdiId,
-//           productionCode: row.productionCode,
-//           product: row.product,
-//           date: row.date,
-//           shift: row.shift,
-//           defectName: row.defectName,
-//           quantity: row.quantity,
-//           inspector: row.inspector,
-//           status: row.status,
-//           severity: row.severity,
-//           correctiveActions: [],
-//           preventiveActions: []
-//         };
-//       }
-
-//       if (row.correctiveAction) {
-//         pdiMap[row.pdiId].correctiveActions.push({
-//           action: row.correctiveAction,
-//           responsible: row.correctiveResponsible,
-//           dueDate: row.correctiveDueDate
-//         });
-//       }
-
-//       if (row.preventiveAction) {
-//         pdiMap[row.pdiId].preventiveActions.push({
-//           action: row.preventiveAction,
-//           responsible: row.preventiveResponsible,
-//           dueDate: row.preventiveDueDate
-//         });
-//       }
-//     });
-
-//     res.json(Object.values(pdiMap));
-//   } catch (err) {
-//     console.error('Error fetching PDI entries:', err);
-//     res.status(500).json({ error: 'Failed to fetch PDI entries' });
-//   }
-// });
-
-// // =================== POST /api/pdi ===================
-// router.post('/api/pdi', async (req, res) => {
-//   const pool = await poolPromise;
-//   const transaction = new sql.Transaction(pool);
-
-//   try {
-//     const {
-//       productionCode, product, date, shift, defectName, quantity, inspector,
-//       status = 'Open', severity,
-//       correctiveActions, preventiveActions
-//     } = req.body;
-
-//     const uuid = uuidv4();
-
-//     await transaction.begin();
-
-//     // 1️⃣ Insert PDI entry
-//     const pdiRequest = new sql.Request(transaction);
-//     pdiRequest.input('pdiId', sql.UniqueIdentifier, uuid);
-//     pdiRequest.input('productionCode', sql.VarChar, productionCode);
-//     pdiRequest.input('product', sql.VarChar, product);
-//     pdiRequest.input('date', sql.Date, date);
-//     pdiRequest.input('shift', sql.VarChar, shift);
-//     pdiRequest.input('defectName', sql.VarChar, defectName);
-//     pdiRequest.input('quantity', sql.Int, quantity);
-//     pdiRequest.input('inspector', sql.UniqueIdentifier, inspector); // inspector is UUID
-//     pdiRequest.input('status', sql.VarChar, status);
-//     pdiRequest.input('severity', sql.VarChar, severity);
-
-//     await pdiRequest.query(`
-//       INSERT INTO PDI (pdiId, productionCode, product, date, shift, defectName, quantity, inspector, status, severity)
-//       VALUES (@pdiId, @productionCode, @product, @date, @shift, @defectName, @quantity, @inspector, @status, @severity)
-//     `);
-
-//     // 2️⃣ Insert corrective actions
-//     for (const action of correctiveActions || []) {
-//       const correctiveReq = new sql.Request(transaction);
-//       correctiveReq.input('pdiId', sql.UniqueIdentifier, uuid);
-//       correctiveReq.input('action', sql.NVarChar(sql.MAX), action.action);
-//       correctiveReq.input('responsible', sql.VarChar, action.responsible);
-//       correctiveReq.input('dueDate', sql.Date, action.dueDate);
-
-//       await correctiveReq.query(`
-//         INSERT INTO PDI_CorrectiveActions (pdiId, action, responsible, dueDate)
-//         VALUES (@pdiId, @action, @responsible, @dueDate)
-//       `);
-//     }
-
-//     // 3️⃣ Insert preventive actions
-//     for (const action of preventiveActions || []) {
-//       const preventiveReq = new sql.Request(transaction);
-//       preventiveReq.input('pdiId', sql.UniqueIdentifier, uuid);
-//       preventiveReq.input('action', sql.NVarChar(sql.MAX), action.action);
-//       preventiveReq.input('responsible', sql.VarChar, action.responsible);
-//       preventiveReq.input('dueDate', sql.Date, action.dueDate);
-
-//       await preventiveReq.query(`
-//         INSERT INTO PDI_PreventiveActions (pdiId, action, responsible, dueDate)
-//         VALUES (@pdiId, @action, @responsible, @dueDate)
-//       `);
-//     }
-
-//     // 4️⃣ Auto-create a Task if defectName exists
-//     if (defectName && defectName.trim() !== '') {
-//       const taskId = uuidv4();
-//       const taskReq = new sql.Request(transaction);
-
-//       taskReq.input('taskId', sql.UniqueIdentifier, taskId);
-//       taskReq.input('productionCode', sql.VarChar, productionCode || null);
-//       taskReq.input('taskType', sql.VarChar, 'pdi-defect');
-//       taskReq.input('title', sql.VarChar, `PDI Defect: ${defectName}`);
-//       taskReq.input('description', sql.NVarChar(sql.MAX), `Defect found during PDI for product ${product} in shift ${shift}.`);
-//       taskReq.input('priority', sql.VarChar, severity?.toLowerCase() || 'medium');
-//       taskReq.input('assignedTo', sql.UniqueIdentifier, inspector || null);
-//       taskReq.input('dueDate', sql.Date, date);
-//       taskReq.input('status', sql.VarChar, 'pending');
-//       taskReq.input('createdFrom', sql.VarChar, 'pdi');
-//       taskReq.input('rejectionReason', sql.NVarChar(sql.MAX), null);
-//       taskReq.input('quantity', sql.Int, quantity || null);
-//       taskReq.input('maintenanceType', sql.VarChar, null);
-//       taskReq.input('equipment', sql.VarChar, null);
-
-//       await taskReq.query(`
-//         INSERT INTO Tasks (
-//           taskId, productionCode, taskType, title, description, priority, assignedTo, dueDate,
-//           status, createdFrom, rejectionReason, quantity, maintenanceType, equipment
-//         )
-//         VALUES (
-//           @taskId, @productionCode, @taskType, @title, @description, @priority, @assignedTo, @dueDate,
-//           @status, @createdFrom, @rejectionReason, @quantity, @maintenanceType, @equipment
-//         )
-//       `);
-//     }
-
-//     await transaction.commit();
-
-//     res.status(201).json({
-//       pdiId: uuid,
-//       productionCode,
-//       product,
-//       date,
-//       shift,
-//       defectName,
-//       quantity,
-//       inspector,
-//       status,
-//       severity,
-//       correctiveActions,
-//       preventiveActions
-//     });
-
-//   } catch (err) {
-//     try { await transaction.rollback(); } catch {}
-//     console.error('Error adding PDI entry:', err);
-//     res.status(500).json({ error: 'Failed to add PDI entry' });
-//   }
-// });
-
-// // =================== PATCH /api/pdi/:id ===================
-// // router.patch('/api/pdi/:id', async (req, res) => {
-// //   const { id } = req.params;
-// //   const { status } = req.body;
-
-// //   console.log(`🔧 Updating PDI status for ID ${id} to ${status}`);
-  
-
-// //   try {
-// //     const pool = await poolPromise;
-// //     const request = pool.request();
-// //     request.input('pdiId', sql.UniqueIdentifier, id);
-// //     request.input('status', sql.VarChar, status);
-
-// //     const result = await request.query(`
-// //       UPDATE PDI SET status = @status WHERE pdiId = @pdiId
-// //     `);
-
-// //     if (result.rowsAffected[0] === 0) {
-// //       return res.status(404).json({ error: 'PDI entry not found' });
-// //     }
-
-// //     res.json({ message: 'PDI status updated successfully', pdiId: id, status });
-// //   } catch (err) {
-// //     console.error('Error updating PDI status:', err);
-// //     res.status(500).json({ error: 'Failed to update PDI status' });
-// //   }
-// // });
-
-// // ✅ Update PDI entry
-// // router.patch("/api/pdi/:id", async (req, res) => {
-// //   // await poolPromise;
-
-// //   const { id } = req.params;
-// //   const {
-// //     productionCode,
-// //     product,
-// //     date,
-// //     shift,
-// //     defectName,
-// //     quantity,
-// //     inspector,
-// //     status,
-// //     severity,
-// //     correctiveActions,
-// //     preventiveActions,
-// //   } = req.body;
-
-// //   const pool = await poolPromise;
-// //   if (!pool) {
-// //     return res.status(500).json({ error: 'Database connection failed' });
-// //   }
-// //   const request = pool.request();
-
-// //   const transaction = new sql.Transaction(pool);
-
-// //   try {
-// //     await transaction.begin();
-
-// //     // Update main PDI record
-// //     await transaction
-// //       .request()
-// //       .input("pdiId", sql.UniqueIdentifier, id)
-// //       .input("productionCode", sql.NVarChar(50), productionCode)
-// //       .input("product", sql.NVarChar(100), product)
-// //       .input("date", sql.Date, date? new Date(date) : null)
-// //       .input("shift", sql.NVarChar(10), shift)
-// //       .input("defectName", sql.NVarChar(100), defectName)
-// //       .input("quantity", sql.Int, quantity)
-// //       .input("inspector", sql.NVarChar(100), inspector)
-// //       .input("status", sql.NVarChar(50), status)
-// //       .input("severity", sql.NVarChar(50), severity)
-// //       .query(`
-// //         UPDATE PDI
-// //         SET productionCode = @productionCode,
-// //             product = @product,
-// //             date = @date,
-// //             shift = @shift,
-// //             defectName = @defectName,
-// //             quantity = @quantity,
-// //             inspector = @inspector,
-// //             status = @status,
-// //             severity = @severity
-// //         WHERE pdiId = @pdiId
-// //       `);
-
-// //     // Delete old actions (simpler than updating in place)
-// //     await transaction
-// //       .request()
-// //       .input("pdiId", sql.UniqueIdentifier, id)
-// //       .query(`DELETE FROM Actions WHERE pdiId = @pdiId`);
-
-// //     // Insert corrective actions
-// //     for (const action of correctiveActions || []) {
-// //       await transaction
-// //         .request()
-// //         .input("pdiId", sql.UniqueIdentifier, id)
-// //         .input("action", sql.NVarChar(sql.MAX), action.action)
-// //         .input("responsible", sql.NVarChar(100), action.responsible)
-// //         .input("dueDate", sql.Date, action.dueDate || null)
-// //         .query(
-// //           `INSERT INTO Actions (pdiId, actionType, action, responsible, dueDate)
-// //            VALUES (@pdiId, 'corrective', @action, @responsible, @dueDate)`
-// //         );
-// //     }
-
-// //     // Insert preventive actions
-// //     for (const action of preventiveActions || []) {
-// //       await transaction
-// //         .request()
-// //         .input("pdiId", sql.UniqueIdentifier, id)
-// //         .input("action", sql.NVarChar(sql.MAX), action.action)
-// //         .input("responsible", sql.NVarChar(100), action.responsible)
-// //         .input("dueDate", sql.Date, action.dueDate || null)
-// //         .query(
-// //           `INSERT INTO Actions (pdiId, actionType, action, responsible, dueDate)
-// //            VALUES (@pdiId, 'preventive', @action, @responsible, @dueDate)`
-// //         );
-// //     }
-
-// //     await transaction.commit();
-// //     res.json({ message: "PDI entry updated successfully" });
-// //   } catch (err) {
-// //     await transaction.rollback();
-// //     console.error("Error updating PDI:", err);
-// //     res.status(500).json({ message: "Failed to update PDI entry", error: err.message });
-// //   }
-// // });
-
-// router.patch("/api/pdi/:id", async (req, res) => {
-//   const { id } = req.params;
-//   const {
-//     productionCode,
-//     product,
-//     date,
-//     shift,
-//     defectName,
-//     quantity,
-//     inspector,
-//     status,
-//     severity,
-//     correctiveActions = [],
-//     preventiveActions = []
-//   } = req.body;
-
-//   const pool = await poolPromise;
-//   if (!pool) {
-//     return res.status(500).json({ error: "Database connection failed" });
-//   }
-
-//   const transaction = new sql.Transaction(pool);
-
-//   try {
-//     await transaction.begin();
-
-//     // 1️⃣ Update main PDI record
-//     await transaction.request()
-//       .input("pdiId", sql.UniqueIdentifier, id)
-//       .input("productionCode", sql.NVarChar(50), productionCode)
-//       .input("product", sql.NVarChar(100), product)
-//       .input("date", sql.Date, date ? new Date(date) : null)
-//       .input("shift", sql.NVarChar(10), shift)
-//       .input("defectName", sql.NVarChar(100), defectName)
-//       .input("quantity", sql.Int, quantity)
-//       .input("inspector", sql.UniqueIdentifier, inspector)
-//       .input("status", sql.NVarChar(50), status)
-//       .input("severity", sql.NVarChar(50), severity)
-//       .query(`
-//         UPDATE PDI
-//         SET productionCode = @productionCode,
-//             product = @product,
-//             date = @date,
-//             shift = @shift,
-//             defectName = @defectName,
-//             quantity = @quantity,
-//             inspector = @inspector,
-//             status = @status,
-//             severity = @severity
-//         WHERE pdiId = @pdiId
-//       `);
-
-//     // 2️⃣ Delete old corrective actions
-//     await transaction.request()
-//       .input("pdiId", sql.UniqueIdentifier, id)
-//       .query(`DELETE FROM PDI_CorrectiveActions WHERE pdiId = @pdiId`);
-
-//     // 3️⃣ Insert new corrective actions
-//     for (const action of correctiveActions) {
-//       await transaction.request()
-//         .input("pdiId", sql.UniqueIdentifier, id)
-//         .input("action", sql.NVarChar(sql.MAX), action.action || null)
-//         .input("responsible", sql.NVarChar(100), action.responsible || null)
-//         .input("dueDate", sql.Date, action.dueDate ? new Date(action.dueDate) : null)
-//         .query(`
-//           INSERT INTO PDI_CorrectiveActions (pdiId, action, responsible, dueDate)
-//           VALUES (@pdiId, @action, @responsible, @dueDate)
-//         `);
-//     }
-
-//     // 4️⃣ Delete old preventive actions
-//     await transaction.request()
-//       .input("pdiId", sql.UniqueIdentifier, id)
-//       .query(`DELETE FROM PDI_PreventiveActions WHERE pdiId = @pdiId`);
-
-//     // 5️⃣ Insert new preventive actions
-//     for (const action of preventiveActions) {
-//       await transaction.request()
-//         .input("pdiId", sql.UniqueIdentifier, id)
-//         .input("action", sql.NVarChar(sql.MAX), action.action || null)
-//         .input("responsible", sql.NVarChar(100), action.responsible || null)
-//         .input("dueDate", sql.Date, action.dueDate ? new Date(action.dueDate) : null)
-//         .query(`
-//           INSERT INTO PDI_PreventiveActions (pdiId, action, responsible, dueDate)
-//           VALUES (@pdiId, @action, @responsible, @dueDate)
-//         `);
-//     }
-
-//     // 6️⃣ Commit transaction
-//     await transaction.commit();
-//     res.json({ message: "PDI entry updated successfully" });
-
-//   } catch (err) {
-//     // Rollback if any error occurs
-//     try { await transaction.rollback(); } catch (rollbackErr) {
-//       console.error("Rollback failed:", rollbackErr);
-//     }
-//     console.error("Error updating PDI:", err);
-//     res.status(500).json({ message: "Failed to update PDI entry", error: err.message });
-//   }
-// });
-
-
-
-// // =================== DELETE /api/pdi/:id ===================
-// router.delete('/api/pdi/:id', async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     const pool = await poolPromise;
-//     const request = pool.request();
-//     request.input('pdiId', sql.UniqueIdentifier, id);
-
-//     await request.query(`DELETE FROM PDI_CorrectiveActions WHERE pdiId = @pdiId`);
-//     await request.query(`DELETE FROM PDI_PreventiveActions WHERE pdiId = @pdiId`);
-//     const result = await request.query(`DELETE FROM PDI WHERE pdiId = @pdiId`);
-
-//     if (result.rowsAffected[0] === 0) {
-//       return res.status(404).json({ error: 'PDI entry not found' });
-//     }
-
-//     res.json({ message: 'PDI entry deleted successfully', pdiId: id });
-//   } catch (err) {
-//     console.error('Error deleting PDI entry:', err);
-//     res.status(500).json({ error: 'Failed to delete PDI entry' });
-//   }
-// });
-
-// export default router;
-
-
 import express from 'express';
+
 import sql from 'mssql';
 import { poolPromise } from '../db.js';
 import { v4 as uuidv4 } from 'uuid';
-
+import authMiddleware from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // Valid status values
 const VALID_STATUSES = ['Open', 'In Progress', 'Closed'];
 
-// =================== GET /api/pdi ===================
-router.get('/api/pdi', async (req, res) => {
+// =================== GET /pdi ===================
+router.get('/pdi',authMiddleware, async (req, res) => {
   try {
     const pool = await poolPromise;
 
@@ -680,6 +22,7 @@ router.get('/api/pdi', async (req, res) => {
         p.date,
         p.shift,
         p.defectName,
+        p.areaOfDefect,
         p.quantity,
         p.inspector,
         p.status,
@@ -709,6 +52,7 @@ router.get('/api/pdi', async (req, res) => {
           date: row.date ? row.date.toISOString().split('T')[0] : null,
           shift: row.shift,
           defectName: row.defectName,
+          areaOfDefect: row.areaOfDefect,
           quantity: row.quantity,
           inspector: row.inspector,
           status: row.status,
@@ -744,16 +88,19 @@ router.get('/api/pdi', async (req, res) => {
   }
 });
 
-// =================== POST /api/pdi ===================
-router.post('/api/pdi', async (req, res) => {
+// =================== POST /pdi ===================
+router.post('/pdi', async (req, res) => {
   const pool = await poolPromise;
   const transaction = new sql.Transaction(pool);
 
   try {
     const {
-      productionCode, product, date, shift, defectName, quantity, inspector,
+      productionCode, product, date, shift, defectName,areaOfDefect, quantity, inspector,
       status = 'Open', severity, correctiveActions = [], preventiveActions = []
     } = req.body;
+
+    console.log("pdi bacnd log", req.body);
+    
 
     // Validate status
     if (!VALID_STATUSES.includes(status)) {
@@ -778,14 +125,15 @@ router.post('/api/pdi', async (req, res) => {
     pdiRequest.input('date', sql.Date, date ? new Date(date) : null);
     pdiRequest.input('shift', sql.VarChar, shift);
     pdiRequest.input('defectName', sql.VarChar, defectName);
+    pdiRequest.input('areaOfDefect', sql.VarChar(50), areaOfDefect);
     pdiRequest.input('quantity', sql.Int, quantity);
     pdiRequest.input('inspector', sql.UniqueIdentifier, inspector);
     pdiRequest.input('status', sql.VarChar, status);
     pdiRequest.input('severity', sql.VarChar, severity);
 
     await pdiRequest.query(`
-      INSERT INTO PDI (pdiId, productionCode, product, date, shift, defectName, quantity, inspector, status, severity)
-      VALUES (@pdiId, @productionCode, @product, @date, @shift, @defectName, @quantity, @inspector, @status, @severity)
+      INSERT INTO PDI (pdiId, productionCode, product, date, shift, defectName,areaOfDefect, quantity, inspector, status, severity)
+      VALUES (@pdiId, @productionCode, @product, @date, @shift, @defectName,@areaOfDefect, @quantity, @inspector, @status, @severity)
     `);
 
     // Insert corrective actions
@@ -816,37 +164,37 @@ router.post('/api/pdi', async (req, res) => {
       `);
     }
 
-    // Auto-create a Task if defectName exists
-    if (defectName && defectName.trim() !== '') {
-      const taskId = uuidv4();
-      const taskReq = new sql.Request(transaction);
+    // // Auto-create a Task if defectName exists
+    // if (defectName && defectName.trim() !== '') {
+    //   const taskId = uuidv4();
+    //   const taskReq = new sql.Request(transaction);
 
-      taskReq.input('taskId', sql.UniqueIdentifier, taskId);
-      taskReq.input('productionCode', sql.VarChar, productionCode || null);
-      taskReq.input('taskType', sql.VarChar, 'pdi-defect');
-      taskReq.input('title', sql.VarChar, `PDI Defect: ${defectName}`);
-      taskReq.input('description', sql.NVarChar(sql.MAX), `Defect found during PDI for product ${product} in shift ${shift}.`);
-      taskReq.input('priority', sql.VarChar, severity?.toLowerCase() || 'medium');
-      taskReq.input('assignedTo', sql.UniqueIdentifier, inspector || null);
-      taskReq.input('dueDate', sql.Date, date ? new Date(date) : null);
-      taskReq.input('status', sql.VarChar, 'pending');
-      taskReq.input('createdFrom', sql.VarChar, 'pdi');
-      taskReq.input('rejectionReason', sql.NVarChar(sql.MAX), null);
-      taskReq.input('quantity', sql.Int, quantity || null);
-      taskReq.input('maintenanceType', sql.VarChar, null);
-      taskReq.input('equipment', sql.VarChar, null);
+    //   taskReq.input('taskId', sql.UniqueIdentifier, taskId);
+    //   taskReq.input('productionCode', sql.VarChar, productionCode || null);
+    //   taskReq.input('taskType', sql.VarChar, 'pdi-defect');
+    //   taskReq.input('title', sql.VarChar, `PDI Defect: ${defectName}`);
+    //   taskReq.input('description', sql.NVarChar(sql.MAX), `Defect found during PDI for product ${product} in shift ${shift}.`);
+    //   taskReq.input('priority', sql.VarChar, severity?.toLowerCase() || 'medium');
+    //   taskReq.input('assignedTo', sql.UniqueIdentifier, inspector || null);
+    //   taskReq.input('dueDate', sql.Date, date ? new Date(date) : null);
+    //   taskReq.input('status', sql.VarChar, 'pending');
+    //   taskReq.input('createdFrom', sql.VarChar, 'pdi');
+    //   taskReq.input('rejectionReason', sql.NVarChar(sql.MAX), null);
+    //   taskReq.input('quantity', sql.Int, quantity || null);
+    //   taskReq.input('maintenanceType', sql.VarChar, null);
+    //   taskReq.input('equipment', sql.VarChar, null);
 
-      await taskReq.query(`
-        INSERT INTO Tasks (
-          taskId, productionCode, taskType, title, description, priority, assignedTo, dueDate,
-          status, createdFrom, rejectionReason, quantity, maintenanceType, equipment
-        )
-        VALUES (
-          @taskId, @productionCode, @taskType, @title, @description, @priority, @assignedTo, @dueDate,
-          @status, @createdFrom, @rejectionReason, @quantity, @maintenanceType, @equipment
-        )
-      `);
-    }
+    //   await taskReq.query(`
+    //     INSERT INTO Tasks (
+    //       taskId, productionCode, taskType, title, description, priority, assignedTo, dueDate,
+    //       status, createdFrom, rejectionReason, quantity, maintenanceType, equipment
+    //     )
+    //     VALUES (
+    //       @taskId, @productionCode, @taskType, @title, @description, @priority, @assignedTo, @dueDate,
+    //       @status, @createdFrom, @rejectionReason, @quantity, @maintenanceType, @equipment
+    //     )
+    //   `);
+    // }
 
     await transaction.commit();
 
@@ -861,6 +209,7 @@ router.post('/api/pdi', async (req, res) => {
           p.date,
           p.shift,
           p.defectName,
+          p.areaOfDefect,
           p.quantity,
           p.inspector,
           p.status,
@@ -887,6 +236,7 @@ router.post('/api/pdi', async (req, res) => {
           date: row.date ? row.date.toISOString().split('T')[0] : null,
           shift: row.shift,
           defectName: row.defectName,
+          areaOfDefect:row.areaOfDefect,
           quantity: row.quantity,
           inspector: row.inspector,
           status: row.status,
@@ -927,11 +277,11 @@ router.post('/api/pdi', async (req, res) => {
   }
 });
 
-// =================== PATCH /api/pdi/:id ===================
-router.patch('/api/pdi/:id', async (req, res) => {
+// =================== PATCH /pdi/:id ===================
+router.patch('/pdi/:id', async (req, res) => {
   const { id } = req.params;
   const {
-    productionCode, product, date, shift, defectName, quantity, inspector,
+    productionCode, product, date, shift, defectName,areaOfDefect, quantity, inspector,
     status, severity, correctiveActions = [], preventiveActions = []
   } = req.body;
 
@@ -993,6 +343,10 @@ router.patch('/api/pdi/:id', async (req, res) => {
     if (defectName !== undefined) {
       updateFields.push('defectName = @defectName');
       updateParams.input('defectName', sql.VarChar, defectName);
+    }
+    if (areaOfDefect !== undefined) {
+      updateFields.push('areaOfDefect = @areaOfDefect');
+      updateParams.input('areaOfDefect', sql.VarChar(50), areaOfDefect);
     }
     if (quantity !== undefined) {
       updateFields.push('quantity = @quantity');
@@ -1072,6 +426,7 @@ router.patch('/api/pdi/:id', async (req, res) => {
           p.date,
           p.shift,
           p.defectName,
+          p.areaOfDefect,
           p.quantity,
           p.inspector,
           p.status,
@@ -1102,6 +457,7 @@ router.patch('/api/pdi/:id', async (req, res) => {
           date: row.date ? row.date.toISOString().split('T')[0] : null,
           shift: row.shift,
           defectName: row.defectName,
+          areaOfDefect: row.areaOfDefect,
           quantity: row.quantity,
           inspector: row.inspector,
           status: row.status,
@@ -1142,8 +498,8 @@ router.patch('/api/pdi/:id', async (req, res) => {
   }
 });
 
-// =================== PATCH /api/pdi/:id/status ===================
-router.patch('/api/pdi/:id/status', async (req, res) => {
+// =================== PATCH /pdi/:id/status ===================
+router.patch('/pdi/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
@@ -1184,6 +540,7 @@ router.patch('/api/pdi/:id/status', async (req, res) => {
           p.date,
           p.shift,
           p.defectName,
+          p.areaOfDefect,
           p.quantity,
           p.inspector,
           p.status,
@@ -1210,6 +567,7 @@ router.patch('/api/pdi/:id/status', async (req, res) => {
           date: row.date ? row.date.toISOString().split('T')[0] : null,
           shift: row.shift,
           defectName: row.defectName,
+          areaOfDefect: row.areaOfDefect,
           quantity: row.quantity,
           inspector: row.inspector,
           status: row.status,
@@ -1247,8 +605,8 @@ router.patch('/api/pdi/:id/status', async (req, res) => {
   }
 });
 
-// =================== DELETE /api/pdi/:id ===================
-router.delete('/api/pdi/:id', async (req, res) => {
+// =================== DELETE /pdi/:id ===================
+router.delete('/pdi/:id', async (req, res) => {
   const { id } = req.params;
 
   try {

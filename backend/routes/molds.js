@@ -1,11 +1,13 @@
 import express from 'express';
 import sql from 'mssql'; // Assuming you're using mssql for SQL Server
 import executeQuery from '../utils/helper.js';
+import authMiddleware from '../middleware/authMiddleware.js';
+
 const router = express.Router();
 
 
 // Molds Endpoints
-router.get('/api/molds', async (req, res) => {
+router.get('/molds',authMiddleware, async (req, res) => {
   try {
     const { search } = req.query;
     let query = 'SELECT * FROM Molds WHERE 1=1';
@@ -22,7 +24,7 @@ router.get('/api/molds', async (req, res) => {
   }
 });
 
-router.post('/api/molds', async (req, res) => {
+router.post('/molds', async (req, res) => {
   try {
     const {
       name, dimension, hotRunnerZones, sprueRadius, gateSequence, pmShotCount,
@@ -52,7 +54,7 @@ router.post('/api/molds', async (req, res) => {
 });
 
 // Update Mold
-router.put('/api/molds/:moldId', async (req, res) => {
+router.put('/molds/:moldId', async (req, res) => {
   try {
     const { moldId } = req.params;
     const {
@@ -97,7 +99,7 @@ router.put('/api/molds/:moldId', async (req, res) => {
 });
 
 // Delete Mold
-router.delete('/api/molds/:moldId', async (req, res) => {
+router.delete('/molds/:moldId', async (req, res) => {
   try {
     const { moldId } = req.params;
 

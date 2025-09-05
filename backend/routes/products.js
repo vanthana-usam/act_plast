@@ -5,10 +5,11 @@ import { poolPromise } from '../db.js'; // Assuming you have a db.js file that e
 // configured mssql pool
 import executeQuery from '../utils/helper.js'; // Import the helper function
 const router = express.Router();
+import authMiddleware from '../middleware/authMiddleware.js';
 
 
 // Products Endpoints
-router.get('/api/products', async (req, res) => {
+router.get('/products',authMiddleware, async (req, res) => {
   try {
     const { search } = req.query;
     let query = 'SELECT * FROM Products WHERE 1=1';
@@ -25,7 +26,7 @@ router.get('/api/products', async (req, res) => {
   }
 });
 
-router.post('/api/products', async (req, res) => {
+router.post('/products', async (req, res) => {
   try {
     const {
       name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status
@@ -53,7 +54,7 @@ router.post('/api/products', async (req, res) => {
 });
 
 // Update Product
-router.put('/api/products/:productId', async (req, res) => {
+router.put('/products/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
     const {
@@ -95,7 +96,7 @@ router.put('/api/products/:productId', async (req, res) => {
 });
 
 // Delete Product
-router.delete('/api/products/:productId', async (req, res) => {
+router.delete('/products/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
 

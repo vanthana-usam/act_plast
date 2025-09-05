@@ -2,18 +2,19 @@ import express from 'express';
 import sql from 'mssql';
 import { v4 as uuidv4 } from 'uuid';
 import executeQuery from '../utils/helper.js'; // helper wrapper for queries
+import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 /**
  * GET all tasks with corrective & preventive actions
  */
-router.get('/api/tasks', async (req, res) => {
+router.get('/tasks',authMiddleware, async (req, res) => {
   try {
     const taskQuery = `
       SELECT taskId, productionCode, taskType, title, description, priority, assignedTo, dueDate, 
              status, createdFrom, rejectionReason, quantity, maintenanceType, equipment,
-             progress, statusComments, rootCause, impactAssessment, recurrenceRisk, lessonsLearned
+             progress, statusComments, rootCause, impactAssessment, recurrenceRisk, lessonsLearned, assignedTeam
       FROM Tasks
     `;
     const tasks = await executeQuery(taskQuery);
@@ -51,7 +52,7 @@ router.get('/api/tasks', async (req, res) => {
 /**
  * POST create new task
  */
-router.post('/api/tasks', async (req, res) => {
+router.post('/tasks', async (req, res) => {
   try {
     const {
       title, taskType, priority, assignedTo, dueDate, productionCode,
@@ -100,7 +101,7 @@ router.post('/api/tasks', async (req, res) => {
 /**
  * PUT update task & its actions
  */
-router.put('/api/tasks/:id', async (req, res) => {
+router.put('/tasks/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -171,7 +172,7 @@ router.put('/api/tasks/:id', async (req, res) => {
 /**
  * DELETE task & children
  */
-router.delete('/api/tasks/:id', async (req, res) => {
+router.delete('/tasks/:id', async (req, res) => {
   try {
     const { id } = req.params;
 

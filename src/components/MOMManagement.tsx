@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { v4 as uuidv4 } from "uuid";
+import { useAuth } from "@/AuthContext";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-// Error Boundary Component
-class ErrorBoundary extends Component<
+// Error Boundary Component (unchanged)
+class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; errorMessage: string }
 > {
@@ -33,8 +36,9 @@ class ErrorBoundary extends Component<
     return { hasError: true, errorMessage: error.message };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("ErrorBoundary caught error:", error, errorInfo);
+    toast.error(`An error occurred: ${error.message}`);
   }
 
   render() {
@@ -78,9 +82,10 @@ interface ActionItem {
   dueDate: string;
 }
 
-const generateUUID = () => uuidv4();
+const API_URL = 'http://192.168.1.82:5000';
 
-const MOMManagement = () => {
+const MOMManagement: React.FC = () => {
+  const { token } = useAuth();
   const [isCreatingMOM, setIsCreatingMOM] = useState(false);
   const [momList, setMomList] = useState<MOM[]>([]);
   const [meetingTitle, setMeetingTitle] = useState("");
@@ -91,23 +96,13 @@ const MOMManagement = () => {
   const [summary, setSummary] = useState("");
   const [decisions, setDecisions] = useState("");
   const [actionItems, setActionItems] = useState<ActionItem[]>([
-    { actionId: generateUUID(), description: "", assignedTo: "", dueDate: "" },
+    { actionId: uuidv4(), description: "", assignedTo: "", dueDate: "" },
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [editingMOM, setEditingMOM] = useState<MOM | null>(null);
 
-
-const API_URL = 'http://192.168.1.158:5000' ;
-// const API_URL =
-//   process.env.REACT_APP_API_URL ??
-//   (window.location.hostname === "localhost"
-//     ? "http://localhost:5000"
-//     : "http://192.168.1.82:5000");
-
-
-
-  // Safe date parsing
-  const parseDate = (dateStr: string): string => {
+  // Memoized date parsing
+  const parseDate = useCallback((dateStr: string): string => {
     try {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) {
@@ -119,10 +114,16 @@ const API_URL = 'http://192.168.1.158:5000' ;
       console.warn(`Error parsing date ${dateStr}:`, err);
       return "";
     }
-  };
+  }, []);
+
+  // Memoized UUID validation
+  const isValidUUID = useCallback((str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  }, []);
 
   // Validate MOM data
-  const isValidMOM = (data: any): data is MOM => {
+  const isValidMOM = useCallback((data: any): data is MOM => {
     return (
       data &&
       typeof data.MOMId === "string" &&
@@ -142,14 +143,18 @@ const API_URL = 'http://192.168.1.158:5000' ;
           typeof item.dueDate === "string"
       )
     );
-  };
+  }, []);
 
   // Fetch MOM list from backend
-  const fetchMoms = async () => {
+  const fetchMoms = useCallback(async () => {
     setIsLoading(true);
     try {
-      // const res = await fetch("http://localhost:5000/api/mom");
-      const res = await fetch(`${API_URL}/api/mom`);
+      const res = await fetch(`${API_URL}/api/mom`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -161,46 +166,49 @@ const API_URL = 'http://192.168.1.158:5000' ;
         console.warn("Some MOM data was invalid and filtered out:", data);
       }
       setMomList(validData);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching MOMs:", err);
-      alert(`Failed to load meeting records: ${err.message}`);
+      toast.error(`Failed to load meeting records: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, isValidMOM]);
+
+  // Debounced fetchMoms to prevent excessive API calls
+  const debouncedFetchMoms = useCallback(
+    debounce(fetchMoms, 300),
+    [fetchMoms]
+  );
 
   useEffect(() => {
-    fetchMoms();
+    debouncedFetchMoms();
+    return () => debouncedFetchMoms.cancel();
+  }, [debouncedFetchMoms]);
+
+  // Memoized action item handlers
+  const addActionItem = useCallback(() => {
+    setActionItems((prev) => [
+      ...prev,
+      { actionId: uuidv4(), description: "", assignedTo: "", dueDate: "" },
+    ]);
   }, []);
 
-  const addActionItem = () => {
-    setActionItems([
-      ...actionItems,
-      {
-        actionId: generateUUID(),
-        description: "",
-        assignedTo: "",
-        dueDate: "",
-      },
-    ]);
-  };
+  const removeActionItem = useCallback((index: number) => {
+    setActionItems((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
-  const removeActionItem = (index: number) => {
-    setActionItems(actionItems.filter((_, i) => i !== index));
-  };
+  const updateActionItem = useCallback(
+    (index: number, field: keyof ActionItem, value: string) => {
+      setActionItems((prev) =>
+        prev.map((item, i) =>
+          i === index ? { ...item, [field]: value } : item
+        )
+      );
+    },
+    []
+  );
 
-  const updateActionItem = (
-    index: number,
-    field: keyof ActionItem,
-    value: string
-  ) => {
-    const updated = actionItems.map((item, i) =>
-      i === index ? { ...item, [field]: value } : item
-    );
-    setActionItems(updated);
-  };
-
-  const handleEdit = (mom: MOM) => {
+  const handleEdit = useCallback((mom: MOM) => {
     setEditingMOM(mom);
     setIsCreatingMOM(true);
     setMeetingTitle(mom.Title);
@@ -213,130 +221,54 @@ const API_URL = 'http://192.168.1.158:5000' ;
     setActionItems(
       mom.ActionItems.length > 0
         ? mom.ActionItems.map((ai) => ({
-            actionId: ai.actionId || generateUUID(),
+            actionId: ai.actionId || uuidv4(),
             description: ai.description,
             assignedTo: ai.assignedTo,
             dueDate: parseDate(ai.dueDate),
           }))
-        : [
-            {
-              actionId: generateUUID(),
-              description: "",
-              assignedTo: "",
-              dueDate: "",
-            },
-          ]
+        : [{ actionId: uuidv4(), description: "", assignedTo: "", dueDate: "" }]
     );
-  };
+  }, [parseDate]);
 
-  const isValidUUID = (str: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(str);
-  };
+  const handleDelete = useCallback(async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this MOM?")) return;
 
-//   const handleDelete = async (id: string) => {
-//     if (!window.confirm("Are you sure you want to delete this MOM?")) return;
-
-//     if (!isValidUUID(id)) {
-//       alert("Invalid MOM ID format");
-//       return;
-//     }
-
-//     setIsLoading(true);
-//     try {
-// //       const res = await fetch(`${API_URL}/api/mom`);
-
-//       const res = await fetch(`${API_URL}/api/mom:${id}`, {
-//         method: "DELETE",
-//       });
-//       if (!res.ok) {
-//         const errorData = await res.json().catch(() => ({}));
-//         throw new Error(errorData.error || `Failed to delete MOM (Status: ${res.status})`);
-//       }
-//       alert("MOM deleted successfully");
-//       fetchMoms();
-//     } catch (err) {
-//       console.error("Error deleting MOM:", err);
-//       alert(`Failed to delete MOM: ${err.message}`);
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-// const handleDelete = async (id: string) => {
-//   if (!window.confirm("Are you sure you want to delete this MOM?")) return;
-
-//   if (!isValidUUID(id)) {
-//     alert("Invalid MOM ID format");
-//     return;
-//   }
-
-//   setIsLoading(true);
-//   try {
-//     const res = await fetch(`${API_URL}/api/mom/${id}`, {
-//       method: "DELETE",
-//       headers: { "Content-Type": "application/json" }, // Added for consistency
-//     });
-
-//     if (!res.ok) {
-//       const errorData = await res.json().catch(() => ({}));
-//       throw new Error(
-//         errorData.error || `Failed to delete MOM (Status: ${res.status})`
-//       );
-//     }
-
-//     alert("MOM deleted successfully");
-//     fetchMoms();
-//   } catch (err) {
-//     console.error("Error deleting MOM:", {
-//       message: err.message,
-//       stack: err.stack,
-//       status: err.status,
-//     });
-//     alert(`Failed to delete MOM: ${err.message}`);
-//   } finally {
-//     setIsLoading(false);
-//   }
-// };
-
-const handleDelete = async (id: string) => {
-  if (!window.confirm("Are you sure you want to delete this MOM?")) return;
-
-  if (!isValidUUID(id)) {
-    alert("Invalid MOM ID format");
-    return;
-  }
-
-  setIsLoading(true);
-  try {
-    const res = await fetch(`${API_URL}/api/mom/${id}`, { // Fixed: Changed : to /
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(
-        errorData.error || `Failed to delete MOM (Status: ${res.status})`
-      );
+    if (!isValidUUID(id)) {
+      toast.error("Invalid MOM ID format");
+      return;
     }
 
-    alert("MOM deleted successfully");
-    fetchMoms();
-  } catch (err) {
-    console.error("Error deleting MOM:", {
-      message: err.message,
-      stack: err.stack,
-    });
-    alert(`Failed to delete MOM: ${err.message}`);
-  } finally {
-    setIsLoading(false);
-  }
-};
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/mom/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-  const handleSubmit = async () => {
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to delete MOM (Status: ${res.status})`);
+      }
+
+      toast.success("MOM deleted successfully");
+      debouncedFetchMoms();
+    } catch (err: any) {
+      console.error("Error deleting MOM:", {
+        message: err.message,
+        stack: err.stack,
+      });
+      toast.error(`Failed to delete MOM: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isValidUUID, token, debouncedFetchMoms]);
+
+  const handleSubmit = useCallback(async () => {
     if (!meetingTitle || !meetingDate || !department || !status || !attendees) {
-      alert("Please fill in all required fields.");
+      toast.error("Please fill in all required fields.");
       return;
     }
 
@@ -345,7 +277,7 @@ const handleDelete = async (id: string) => {
     );
 
     if (validActionItems.length === 0) {
-      alert("Please add at least one valid action item.");
+      toast.error("Please add at least one valid action item.");
       return;
     }
 
@@ -369,13 +301,19 @@ const handleDelete = async (id: string) => {
         }
         res = await fetch(`${API_URL}/api/mom/${editingMOM.MOMId}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify(momData),
         });
       } else {
         res = await fetch(`${API_URL}/api/mom`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify(momData),
         });
       }
@@ -385,20 +323,33 @@ const handleDelete = async (id: string) => {
         throw new Error(errorData.error || `${editingMOM ? "Update" : "Creation"} failed (Status: ${res.status})`);
       }
 
-      alert(editingMOM ? "MOM updated successfully" : "MOM created successfully");
+      toast.success(editingMOM ? "MOM updated successfully" : "MOM created successfully");
       setIsCreatingMOM(false);
       setEditingMOM(null);
       resetForm();
-      fetchMoms();
-    } catch (err) {
+      debouncedFetchMoms();
+    } catch (err: any) {
       console.error("Error submitting MOM:", err);
-      alert(`Failed to ${editingMOM ? "update" : "create"} MOM: ${err.message}`);
+      toast.error(`Failed to ${editingMOM ? "update" : "create"} MOM: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    meetingTitle,
+    meetingDate,
+    department,
+    status,
+    attendees,
+    summary,
+    decisions,
+    actionItems,
+    editingMOM,
+    isValidUUID,
+    token,
+    debouncedFetchMoms,
+  ]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setMeetingTitle("");
     setMeetingDate("");
     setDepartment("");
@@ -406,21 +357,71 @@ const handleDelete = async (id: string) => {
     setAttendees("");
     setSummary("");
     setDecisions("");
-    setActionItems([
-      {
-        actionId: generateUUID(),
-        description: "",
-        assignedTo: "",
-        dueDate: "",
-      },
-    ]);
+    setActionItems([{ actionId: uuidv4(), description: "", assignedTo: "", dueDate: "" }]);
     setEditingMOM(null);
-  };
+  }, []);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setIsCreatingMOM(false);
     resetForm();
-  };
+  }, [resetForm]);
+
+  // Memoized render for action items to prevent unnecessary re-renders
+  const renderActionItems = useMemo(() => {
+    return actionItems.map((item, index) => (
+      <div
+        key={item.actionId}
+        className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end p-4 border rounded-lg bg-gray-50"
+      >
+        <div className="md:col-span-5">
+          <Label htmlFor={`action-${item.actionId}`}>Action Description *</Label>
+          <Textarea
+            id={`action-${item.actionId}`}
+            value={item.description}
+            onChange={(e) => updateActionItem(index, "description", e.target.value)}
+            placeholder="Describe the action item"
+            rows={2}
+            required
+            aria-required="true"
+          />
+        </div>
+        <div className="md:col-span-3">
+          <Label htmlFor={`assigned-${item.actionId}`}>Assigned To *</Label>
+          <Input
+            id={`assigned-${item.actionId}`}
+            value={item.assignedTo}
+            onChange={(e) => updateActionItem(index, "assignedTo", e.target.value)}
+            placeholder="Person/Team"
+            required
+            aria-required="true"
+          />
+        </div>
+        <div className="md:col-span-3">
+          <Label htmlFor={`due-${item.actionId}`}>Due Date *</Label>
+          <Input
+            id={`due-${item.actionId}`}
+            type="date"
+            value={item.dueDate}
+            onChange={(e) => updateActionItem(index, "dueDate", e.target.value)}
+            required
+            aria-required="true"
+          />
+        </div>
+        <div className="md:col-span-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => removeActionItem(index)}
+            disabled={actionItems.length === 1 || isLoading}
+            aria-label="Remove action item"
+          >
+            ×
+          </Button>
+        </div>
+      </div>
+    ));
+  }, [actionItems, isLoading, updateActionItem, removeActionItem]);
 
   return (
     <ErrorBoundary>
@@ -550,73 +551,7 @@ const handleDelete = async (id: string) => {
                     </Button>
                   </div>
 
-                  <div className="space-y-3">
-                    {actionItems.map((item, index) => (
-                      <div
-                        key={item.actionId}
-                        className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end p-4 border rounded-lg bg-gray-50"
-                      >
-                        <div className="md:col-span-5">
-                          <Label htmlFor={`action-${item.actionId}`}>
-                            Action Description *
-                          </Label>
-                          <Textarea
-                            id={`action-${item.actionId}`}
-                            value={item.description}
-                            onChange={(e) =>
-                              updateActionItem(index, "description", e.target.value)
-                            }
-                            placeholder="Describe the action item"
-                            rows={2}
-                            required
-                            aria-required="true"
-                          />
-                        </div>
-                        <div className="md:col-span-3">
-                          <Label htmlFor={`assigned-${item.actionId}`}>
-                            Assigned To *
-                          </Label>
-                          <Input
-                            id={`assigned-${item.actionId}`}
-                            value={item.assignedTo}
-                            onChange={(e) =>
-                              updateActionItem(index, "assignedTo", e.target.value)
-                            }
-                            placeholder="Person/Team"
-                            required
-                            aria-required="true"
-                          />
-                        </div>
-                        <div className="md:col-span-3">
-                          <Label htmlFor={`due-${item.actionId}`}>
-                            Due Date *
-                          </Label>
-                          <Input
-                            id={`due-${item.actionId}`}
-                            type="date"
-                            value={item.dueDate}
-                            onChange={(e) =>
-                              updateActionItem(index, "dueDate", e.target.value)
-                            }
-                            required
-                            aria-required="true"
-                          />
-                        </div>
-                        <div className="md:col-span-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeActionItem(index)}
-                            disabled={actionItems.length === 1 || isLoading}
-                            aria-label="Remove action item"
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <div className="space-y-3">{renderActionItems}</div>
                 </div>
               </div>
 
@@ -725,4 +660,17 @@ const handleDelete = async (id: string) => {
   );
 };
 
-export default MOMManagement;
+// Debounce utility
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number) {
+  let timeout: NodeJS.Timeout | null = null;
+  const debounced = (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+  debounced.cancel = () => {
+    if (timeout) clearTimeout(timeout);
+  };
+  return debounced as T & { cancel: () => void };
+}
+
+export default React.memo(MOMManagement);

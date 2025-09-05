@@ -1,11 +1,12 @@
 import express from 'express';
 import sql from 'mssql';
 import executeQuery from '../utils/helper.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // ✅ Get all defects
-router.get('/api/defects', async (req, res) => {
+router.get('/defects',authMiddleware, async (req, res) => {
   try {
     const defects = await executeQuery('SELECT * FROM Defects');
     res.json(defects);
@@ -16,7 +17,7 @@ router.get('/api/defects', async (req, res) => {
 });
 
 // ✅ Add a new defect
-router.post('/api/defects', async (req, res) => {
+router.post('/defects', async (req, res) => {
   try {
     const { name, defectType, status = 'active' } = req.body;
 
@@ -39,7 +40,7 @@ router.post('/api/defects', async (req, res) => {
 });
 
 // ✅ Update a defect
-router.put('/api/defects/:defectId', async (req, res) => {
+router.put('/defects/:defectId', async (req, res) => {
   try {
     const { defectId } = req.params;
     const { name, defectType, status } = req.body;
@@ -67,7 +68,7 @@ router.put('/api/defects/:defectId', async (req, res) => {
 });
 
 // ✅ Delete a defect
-router.delete('/api/defects/:defectId', async (req, res) => {
+router.delete('/defects/:defectId', async (req, res) => {
   try {
     const { defectId } = req.params;
 

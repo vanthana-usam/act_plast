@@ -2,11 +2,13 @@
 import express from 'express';
 import sql from 'mssql'; // Assuming you're using mssql for SQL Server
 import executeQuery from '../utils/helper.js';
+import authMiddleware from '../middleware/authMiddleware.js';
+
 const router = express.Router();
 
 // ✅ Get Machines API
 
-router.get('/api/machines', async (req, res) => {
+router.get('/machines',authMiddleware, async (req, res) => {
   try {
     const { search } = req.query;
     let query = 'SELECT * FROM Machines WHERE 1=1';
@@ -24,7 +26,7 @@ router.get('/api/machines', async (req, res) => {
 });
 
 
-router.post('/api/machines', async (req, res) => { 
+router.post('/machines', async (req, res) => { 
   try {
     const {
       name, tieBarDistance, cores, maxMoldHeight, maxDaylight, screwDia, ldRatio,
@@ -63,7 +65,7 @@ router.post('/api/machines', async (req, res) => {
 });
 
 // Update Machine
-router.put('/api/machines/:machineId', async (req, res) => {
+router.put('/machines/:machineId', async (req, res) => {
   try {
     const { machineId } = req.params;
     const {
@@ -118,7 +120,7 @@ router.put('/api/machines/:machineId', async (req, res) => {
 });
 
 // Delete Machine
-router.delete('/api/machines/:machineId', async (req, res) => {
+router.delete('/machines/:machineId', async (req, res) => {
   try {
     const { machineId } = req.params;
 

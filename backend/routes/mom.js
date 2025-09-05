@@ -34,7 +34,7 @@
 
 
 // // // // ================== GET all MOMs ==================
-// // // router.get('/api/mom', async (req, res) => {
+// // // router.get('/mom', async (req, res) => {
 // // //   try {
 // // //     const pool = await poolPromise;
 
@@ -69,7 +69,7 @@
 
 // // // // ================== GET MOM by ID ==================
 // // // router.get(
-// // //   '/api/mom/:id',
+// // //   '/mom/:id',
 // // //   [param('id').isUUID().withMessage('Invalid MOM ID')],
 // // //   async (req, res) => {
 // // //     const errors = validationResult(req);
@@ -117,7 +117,7 @@
 // // // );
 
 // // // // ================== CREATE MOM ==================
-// // // router.post('/api/mom', momValidation, async (req, res) => {
+// // // router.post('/mom', momValidation, async (req, res) => {
 // // //   const errors = validationResult(req);
 // // //   if (!errors.isEmpty()) {
 // // //     return res.status(400).json({ success: false, errors: errors.array() });
@@ -205,7 +205,7 @@
 // // const generateUUID = () => uuidv4();  // ✅ fixed
 
 // // // ================== CREATE MOM ==================
-// // router.post('/api/mom', momValidation, async (req, res) => {
+// // router.post('/mom', momValidation, async (req, res) => {
 // //   const errors = validationResult(req);
 // //   if (!errors.isEmpty()) {
 // //     return res.status(400).json({ success: false, errors: errors.array() });
@@ -271,7 +271,7 @@
 
 // // // ================== UPDATE MOM ==================
 // // router.put(
-// //   '/api/mom/:id',
+// //   '/mom/:id',
 // //   [param('id').isUUID().withMessage('Invalid MOM ID'), ...momValidation],
 // //   async (req, res) => {
 // //     const errors = validationResult(req);
@@ -364,7 +364,7 @@
 
 // // // ================== DELETE MOM ==================
 // // router.delete(
-// //   '/api/mom/:id',
+// //   '/mom/:id',
 // //   [param('id').isUUID().withMessage('Invalid MOM ID')],
 // //   async (req, res) => {
 // //     const errors = validationResult(req);
@@ -454,7 +454,7 @@
 // const generateUUID = () => uuidv4();
 
 // // GET all MOMs
-// router.get('/api/mom', async (req, res) => {
+// router.get('/mom', async (req, res) => {
 //   try {
 //     const pool = await poolPromise;
 
@@ -492,7 +492,7 @@
 
 // // GET MOM by ID
 // router.get(
-//   '/api/mom/:id',
+//   '/mom/:id',
 //   [param('id').isUUID().withMessage('Invalid MOM ID')],
 //   async (req, res) => {
 //     const errors = validationResult(req);
@@ -543,7 +543,7 @@
 // );
 
 // // CREATE MOM
-// router.post('/api/mom', momValidation, async (req, res) => {
+// router.post('/mom', momValidation, async (req, res) => {
 //   const errors = validationResult(req);
 //   if (!errors.isEmpty()) {
 //     return res.status(400).json({ success: false, errors: errors.array() });
@@ -611,7 +611,7 @@
 
 // // UPDATE MOM
 // router.put(
-//   '/api/mom/:id',
+//   '/mom/:id',
 //   [param('id').isUUID().withMessage('Invalid MOM ID'), ...momValidation],
 //   async (req, res) => {
 //     const errors = validationResult(req);
@@ -707,7 +707,7 @@
 
 // // DELETE MOM
 // router.delete(
-//   '/api/mom/:id',
+//   '/mom/:id',
 //   [param('id').isUUID().withMessage('Invalid MOM ID')],
 //   async (req, res) => {
 //     const errors = validationResult(req);
@@ -765,6 +765,7 @@ import express from 'express';
 import { sql, poolPromise } from '../db.js';
 import { body, param, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -794,7 +795,7 @@ const momValidation = [
 ];
 
 // GET all MOMs
-router.get('/api/mom', async (req, res) => {
+router.get('/mom',authMiddleware, async (req, res) => {
   try {
     const pool = await poolPromise;
 
@@ -829,7 +830,7 @@ router.get('/api/mom', async (req, res) => {
 
 // GET MOM by ID
 router.get(
-  '/api/mom/:id',
+  '/mom/:id',
   [param('id').isUUID().withMessage('Invalid MOM ID')],
   async (req, res) => {
     const errors = validationResult(req);
@@ -875,7 +876,7 @@ router.get(
 );
 
 // CREATE MOM
-router.post('/api/mom', momValidation, async (req, res) => {
+router.post('/mom', momValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, errors: errors.array() });
@@ -940,7 +941,7 @@ router.post('/api/mom', momValidation, async (req, res) => {
 
 // UPDATE MOM
 router.put(
-  '/api/mom/:id',
+  '/mom/:id',
   [param('id').isUUID().withMessage('Invalid MOM ID'), ...momValidation],
   async (req, res) => {
     const errors = validationResult(req);
@@ -1029,7 +1030,7 @@ router.put(
 
 // DELETE MOM
 router.delete(
-  '/api/mom/:id',
+  '/mom/:id',
   [param('id').isUUID().withMessage('Invalid MOM ID')],
   async (req, res) => {
     const errors = validationResult(req);
