@@ -1,51 +1,329 @@
+// import express from 'express';
+// import sql from 'mssql';
+// import { v4 as uuidv4 } from 'uuid';
+// import { poolPromise } from '../db.js'; // Assuming you have a db.js file that exports your
+// // configured mssql pool
+// import executeQuery from '../utils/helper.js'; // Import the helper function
+// const router = express.Router();
+// import authMiddleware from '../middleware/authMiddleware.js';
+
+
+// // Products Endpoints
+// router.get('/products',authMiddleware, async (req, res) => {
+//   try {
+//     const { search } = req.query;
+//     let query = 'SELECT * FROM Products WHERE 1=1';
+//     const params = [];
+//     if (search) {
+//       query += ' AND name LIKE @search';
+//       params.push({ name: 'search', type: sql.VarChar, value: `%${search}%` });
+//     }
+//     const products = await executeQuery(query, params);
+//     res.json(products);
+//   } catch (err) {
+//     console.error('Error fetching products:', err);
+//     res.status(500).json([]); // Return empty array on error
+//   }
+// });
+
+// router.post('/products', async (req, res) => {
+//   try {
+//     const {
+//       name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status
+//     } = req.body;
+//     const query = `
+//       INSERT INTO Products (name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status)
+//       VALUES (@name, @cycleTime, @material, @partWeight, @runnerWeight, @cavities, @packingMethod, @packingQty, @status)
+//     `;
+//     await executeQuery(query, [
+//       { name: 'name', type: sql.VarChar, value: name },
+//       { name: 'cycleTime', type: sql.Int, value: cycleTime },
+//       { name: 'material', type: sql.VarChar, value: material },
+//       { name: 'partWeight', type: sql.Decimal(5,1), value: partWeight },
+//       { name: 'runnerWeight', type: sql.Decimal(5,1), value: runnerWeight },
+//       { name: 'cavities', type: sql.Int, value: cavities },
+//       { name: 'packingMethod', type: sql.VarChar, value: packingMethod },
+//       { name: 'packingQty', type: sql.Int, value: packingQty },
+//       { name: 'status', type: sql.VarChar, value: status }
+//     ]);
+//     res.status(201).json({ message: 'Product added successfully' });
+//   } catch (err) {
+//     console.error('Error adding product:', err);
+//     res.status(500).json({ error: 'Failed to add product' });
+//   }
+// });
+
+// // Update Product
+// router.put('/products/:productId', async (req, res) => {
+//   try {
+//     const { productId } = req.params;
+//     const {
+//       name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status
+//     } = req.body;
+
+//     const query = `
+//       UPDATE Products
+//       SET name = @name,
+//           cycleTime = @cycleTime,
+//           material = @material,
+//           partWeight = @partWeight,
+//           runnerWeight = @runnerWeight,
+//           cavities = @cavities,
+//           packingMethod = @packingMethod,
+//           packingQty = @packingQty,
+//           status = @status
+//       WHERE productId = @productId
+//     `;
+
+//     await executeQuery(query, [
+//       { name: 'productId', type: sql.UniqueIdentifier, value: productId },
+//       { name: 'name', type: sql.VarChar, value: name },
+//       { name: 'cycleTime', type: sql.Int, value: cycleTime },
+//       { name: 'material', type: sql.VarChar, value: material },
+//       { name: 'partWeight', type: sql.Decimal(10, 2), value: partWeight },
+//       { name: 'runnerWeight', type: sql.Decimal(10, 2), value: runnerWeight },
+//       { name: 'cavities', type: sql.Int, value: cavities },
+//       { name: 'packingMethod', type: sql.VarChar, value: packingMethod },
+//       { name: 'packingQty', type: sql.Int, value: packingQty },
+//       { name: 'status', type: sql.VarChar, value: status }
+//     ]);
+
+//     res.json({ message: 'Product updated successfully' });
+//   } catch (err) {
+//     console.error('Error updating product:', err);
+//     res.status(500).json({ error: 'Failed to update product' });
+//   }
+// });
+
+// // Delete Product
+// router.delete('/products/:productId', async (req, res) => {
+//   try {
+//     const { productId } = req.params;
+
+//     const query = `DELETE FROM Products WHERE productId = @productId`;
+
+//     await executeQuery(query, [
+//       { name: 'productId', type: sql.UniqueIdentifier, value: productId }
+//     ]);
+
+//     res.json({ message: 'Product deleted successfully' });
+//   } catch (err) {
+//     console.error('Error deleting product:', err);
+//     res.status(500).json({ error: 'Failed to delete product' });
+//   }
+// });
+
+
+// export default router; // Export the router to use in your main app file
+
+
+// import express from 'express';
+// import sql from 'mssql';
+// import { v4 as uuidv4 } from 'uuid';
+// import { poolPromise } from '../db.js'; // Assuming you have a db.js file that exports your
+// // configured mssql pool
+// import executeQuery from '../utils/helper.js'; // Import the helper function
+// const router = express.Router();
+// import authMiddleware from '../middleware/authMiddleware.js';
+
+
+// // Products Endpoints
+// router.get('/products',authMiddleware, async (req, res) => {
+//   try {
+//     const { search } = req.query;
+//     let query = 'SELECT * FROM Products WHERE 1=1';
+//     const params = [];
+//     if (search) {
+//       query += ' AND name LIKE @search';
+//       params.push({ name: 'search', type: sql.VarChar, value: `%${search}%` });
+//     }
+//     const products = await executeQuery(query, params);
+//     res.json(products);
+//   } catch (err) {
+//     console.error('Error fetching products:', err);
+//     res.status(500).json([]); // Return empty array on error
+//   }
+// });
+
+// router.post('/products', async (req, res) => {
+//   try {
+//     const {
+//       name,machineName, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status
+//     } = req.body;
+//     const query = `
+//       INSERT INTO Products (name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status)
+//       VALUES (@name, @cycleTime, @material, @partWeight, @runnerWeight, @cavities, @packingMethod, @packingQty, @status)
+//     `;
+//     await executeQuery(query, [
+//       { name: 'name', type: sql.VarChar, value: name },
+//       { name: 'cycleTime', type: sql.Int, value: cycleTime },
+//       { name: 'material', type: sql.VarChar, value: material },
+//       { name: 'partWeight', type: sql.Decimal(5,1), value: partWeight },
+//       { name: 'runnerWeight', type: sql.Decimal(5,1), value: runnerWeight },
+//       { name: 'cavities', type: sql.Int, value: cavities },
+//       { name: 'packingMethod', type: sql.VarChar, value: packingMethod },
+//       { name: 'packingQty', type: sql.Int, value: packingQty },
+//       { name: 'status', type: sql.VarChar, value: status }
+//     ]);
+//     res.status(201).json({ message: 'Product added successfully' });
+//   } catch (err) {
+//     console.error('Error adding product:', err);
+//     res.status(500).json({ error: 'Failed to add product' });
+//   }
+// });
+
+// // Update Product
+// router.put('/products/:productId', async (req, res) => {
+//   try {
+//     const { productId } = req.params;
+//     const {
+//       name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status
+//     } = req.body;
+
+//     const query = `
+//       UPDATE Products
+//       SET name = @name,
+//           cycleTime = @cycleTime,
+//           material = @material,
+//           partWeight = @partWeight,
+//           runnerWeight = @runnerWeight,
+//           cavities = @cavities,
+//           packingMethod = @packingMethod,
+//           packingQty = @packingQty,
+//           status = @status
+//       WHERE productId = @productId
+//     `;
+
+//     await executeQuery(query, [
+//       { name: 'productId', type: sql.UniqueIdentifier, value: productId },
+//       { name: 'name', type: sql.VarChar, value: name },
+//       { name: 'cycleTime', type: sql.Int, value: cycleTime },
+//       { name: 'material', type: sql.VarChar, value: material },
+//       { name: 'partWeight', type: sql.Decimal(10, 2), value: partWeight },
+//       { name: 'runnerWeight', type: sql.Decimal(10, 2), value: runnerWeight },
+//       { name: 'cavities', type: sql.Int, value: cavities },
+//       { name: 'packingMethod', type: sql.VarChar, value: packingMethod },
+//       { name: 'packingQty', type: sql.Int, value: packingQty },
+//       { name: 'status', type: sql.VarChar, value: status }
+//     ]);
+
+//     res.json({ message: 'Product updated successfully' });
+//   } catch (err) {
+//     console.error('Error updating product:', err);
+//     res.status(500).json({ error: 'Failed to update product' });
+//   }
+// });
+
+// // Delete Product
+// router.delete('/products/:productId', async (req, res) => {
+//   try {
+//     const { productId } = req.params;
+
+//     const query = `DELETE FROM Products WHERE productId = @productId`;
+
+//     await executeQuery(query, [
+//       { name: 'productId', type: sql.UniqueIdentifier, value: productId }
+//     ]);
+
+//     res.json({ message: 'Product deleted successfully' });
+//   } catch (err) {
+//     console.error('Error deleting product:', err);
+//     res.status(500).json({ error: 'Failed to delete product' });
+//   }
+// });
+
+
+// export default router; // Export the router to use in your main app file
+
+
+
+
 import express from 'express';
 import sql from 'mssql';
-import { v4 as uuidv4 } from 'uuid';
-import { poolPromise } from '../db.js'; // Assuming you have a db.js file that exports your
-// configured mssql pool
-import executeQuery from '../utils/helper.js'; // Import the helper function
-const router = express.Router();
+import { poolPromise } from '../db.js';
+import executeQuery from '../utils/helper.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
+const router = express.Router();
 
-// Products Endpoints
-router.get('/products',authMiddleware, async (req, res) => {
+// ✅ Get Products
+router.get('/products', authMiddleware, async (req, res) => {
   try {
     const { search } = req.query;
-    let query = 'SELECT * FROM Products WHERE 1=1';
+    let query = `
+      SELECT P.*, M.machineName 
+      FROM Products P
+      LEFT JOIN Machines M ON P.machineId = M.machineId
+      WHERE 1=1
+    `;
     const params = [];
     if (search) {
-      query += ' AND name LIKE @search';
+      query += ' AND P.name LIKE @search';
       params.push({ name: 'search', type: sql.VarChar, value: `%${search}%` });
     }
     const products = await executeQuery(query, params);
     res.json(products);
   } catch (err) {
     console.error('Error fetching products:', err);
-    res.status(500).json([]); // Return empty array on error
+    res.status(500).json([]);
   }
 });
 
+// ✅ Add Product
 router.post('/products', async (req, res) => {
   try {
     const {
-      name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status
+      name,
+      machineId,
+      machineName,
+      cycleTime,
+      material,
+      partWeight,
+      runnerWeight,
+      cavities,
+      packingMethod,
+      packingQty,
+      status,
     } = req.body;
+
+    let resolvedMachineId = machineId;
+
+    // If machineId not provided but machineName is, resolve it
+    if (!resolvedMachineId && machineName) {
+      const machineLookup = await executeQuery(
+        `SELECT machineId FROM Machines WHERE machineName = @machineName`,
+        [{ name: 'machineName', type: sql.VarChar, value: machineName }]
+      );
+      if (machineLookup.length > 0) {
+        resolvedMachineId = machineLookup[0].machineId;
+      } else {
+        return res.status(400).json({ error: 'Invalid machineName provided' });
+      }
+    }
+
     const query = `
-      INSERT INTO Products (name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status)
-      VALUES (@name, @cycleTime, @material, @partWeight, @runnerWeight, @cavities, @packingMethod, @packingQty, @status)
+      INSERT INTO Products (
+        name, machineId, cycleTime, material, partWeight, runnerWeight,
+        cavities, packingMethod, packingQty, status
+      ) VALUES (
+        @name, @machineId, @cycleTime, @material, @partWeight, @runnerWeight,
+        @cavities, @packingMethod, @packingQty, @status
+      )
     `;
+
     await executeQuery(query, [
       { name: 'name', type: sql.VarChar, value: name },
+      { name: 'machineId', type: sql.UniqueIdentifier, value: resolvedMachineId },
       { name: 'cycleTime', type: sql.Int, value: cycleTime },
       { name: 'material', type: sql.VarChar, value: material },
-      { name: 'partWeight', type: sql.Decimal(5,1), value: partWeight },
-      { name: 'runnerWeight', type: sql.Decimal(5,1), value: runnerWeight },
+      { name: 'partWeight', type: sql.Decimal(10, 2), value: partWeight },
+      { name: 'runnerWeight', type: sql.Decimal(10, 2), value: runnerWeight },
       { name: 'cavities', type: sql.Int, value: cavities },
       { name: 'packingMethod', type: sql.VarChar, value: packingMethod },
       { name: 'packingQty', type: sql.Int, value: packingQty },
-      { name: 'status', type: sql.VarChar, value: status }
+      { name: 'status', type: sql.VarChar, value: status },
     ]);
+
     res.status(201).json({ message: 'Product added successfully' });
   } catch (err) {
     console.error('Error adding product:', err);
@@ -53,17 +331,42 @@ router.post('/products', async (req, res) => {
   }
 });
 
-// Update Product
+// ✅ Update Product
 router.put('/products/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
     const {
-      name, cycleTime, material, partWeight, runnerWeight, cavities, packingMethod, packingQty, status
+      name,
+      machineId,
+      machineName,
+      cycleTime,
+      material,
+      partWeight,
+      runnerWeight,
+      cavities,
+      packingMethod,
+      packingQty,
+      status,
     } = req.body;
+
+    let resolvedMachineId = machineId;
+
+    if (!resolvedMachineId && machineName) {
+      const machineLookup = await executeQuery(
+        `SELECT machineId FROM Machines WHERE machineName = @machineName`,
+        [{ name: 'machineName', type: sql.VarChar, value: machineName }]
+      );
+      if (machineLookup.length > 0) {
+        resolvedMachineId = machineLookup[0].machineId;
+      } else {
+        return res.status(400).json({ error: 'Invalid machineName provided' });
+      }
+    }
 
     const query = `
       UPDATE Products
       SET name = @name,
+          machineId = @machineId,
           cycleTime = @cycleTime,
           material = @material,
           partWeight = @partWeight,
@@ -78,6 +381,7 @@ router.put('/products/:productId', async (req, res) => {
     await executeQuery(query, [
       { name: 'productId', type: sql.UniqueIdentifier, value: productId },
       { name: 'name', type: sql.VarChar, value: name },
+      { name: 'machineId', type: sql.UniqueIdentifier, value: resolvedMachineId },
       { name: 'cycleTime', type: sql.Int, value: cycleTime },
       { name: 'material', type: sql.VarChar, value: material },
       { name: 'partWeight', type: sql.Decimal(10, 2), value: partWeight },
@@ -85,7 +389,7 @@ router.put('/products/:productId', async (req, res) => {
       { name: 'cavities', type: sql.Int, value: cavities },
       { name: 'packingMethod', type: sql.VarChar, value: packingMethod },
       { name: 'packingQty', type: sql.Int, value: packingQty },
-      { name: 'status', type: sql.VarChar, value: status }
+      { name: 'status', type: sql.VarChar, value: status },
     ]);
 
     res.json({ message: 'Product updated successfully' });
@@ -95,7 +399,7 @@ router.put('/products/:productId', async (req, res) => {
   }
 });
 
-// Delete Product
+// ✅ Delete Product
 router.delete('/products/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
@@ -103,7 +407,7 @@ router.delete('/products/:productId', async (req, res) => {
     const query = `DELETE FROM Products WHERE productId = @productId`;
 
     await executeQuery(query, [
-      { name: 'productId', type: sql.UniqueIdentifier, value: productId }
+      { name: 'productId', type: sql.UniqueIdentifier, value: productId },
     ]);
 
     res.json({ message: 'Product deleted successfully' });
@@ -113,5 +417,4 @@ router.delete('/products/:productId', async (req, res) => {
   }
 });
 
-
-export default router; // Export the router to use in your main app file
+export default router;

@@ -1,19 +1,103 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
-import { useNavigate } from "react-router-dom";
+// import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
+
+// interface User {
+//   id: string;
+//   name: string;
+//   email: string;
+//   role?: string;
+//   employeeGroup?: string;
+// }
+
+// interface AuthContextType {
+//   user: User | null;
+//   token: string | null;
+//   login: (user: User, token: string, rememberMe: boolean) => void;
+//   logout: () => void;
+//   loading: boolean;
+// }
+
+// const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// const EXPIRY_DAYS = 15; // 15 days remember-me session
+
+// export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+//   const [user, setUser] = useState<User | null>(null);
+//   const [token, setToken] = useState<string | null>(null);
+//   const [loading, setLoading] = useState(true);
+
+//   // 🔹 Hydrate auth state on app load
+//   useEffect(() => {
+//     const storedUser = localStorage.getItem("user") || sessionStorage.getItem("user");
+//     const storedToken = localStorage.getItem("token") || sessionStorage.getItem("token");
+//     const expiry = localStorage.getItem("expiry") || sessionStorage.getItem("expiry");``
+
+//     if (storedUser && storedToken && expiry) {
+//       const now = new Date().getTime();
+//       if (now < Number(expiry)) {
+//         setUser(JSON.parse(storedUser));
+//         setToken(storedToken);
+//       } else {
+//         logout();
+//       }
+//     }
+//     setLoading(false);
+//   }, []);
+
+//   // 🔹 Login
+//   const login = (user: User, token: string, rememberMe: boolean) => {
+//     setUser(user);
+//     setToken(token);
+
+//     // Clear old storage
+//     localStorage.clear();
+//     sessionStorage.clear();
+
+//     const expiryTime = new Date().getTime() + EXPIRY_DAYS * 24 * 60 * 60 * 1000; // 15 days
+
+//     if (rememberMe) {
+//       localStorage.setItem("user", JSON.stringify(user));
+//       localStorage.setItem("token", token);
+//       localStorage.setItem("expiry", expiryTime.toString());
+//     } else {
+//       sessionStorage.setItem("user", JSON.stringify(user));
+//       sessionStorage.setItem("token", token);
+//       sessionStorage.setItem("expiry", expiryTime.toString());
+//     }
+//   };
+
+//   // 🔹 Logout
+//   const logout = () => {
+//     setUser(null);
+//     setToken(null);
+//     localStorage.clear();
+//     sessionStorage.clear();
+//   };
+
+//   return (
+//     <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+//       {children}
+//     </AuthContext.Provider>
+//   );
+// };
+
+// export const useAuth = () => {
+//   const context = useContext(AuthContext);
+//   if (!context) throw new Error("useAuth must be used within an AuthProvider");
+//   return context;
+// };
+
+
+
+// AUTHCONTEXT UPDATED 
+
+import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
-  employeeGroup: string;
+  role?: string;
+  employeeGroup?: string;
 }
 
 interface AuthContextType {
@@ -21,93 +105,86 @@ interface AuthContextType {
   token: string | null;
   login: (user: User, token: string, rememberMe: boolean) => void;
   logout: () => void;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = "http://192.168.1.82:5000";
+const EXPIRY_DAYS = 15; // 15 days remember-me session
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Storage keys
+const USER_KEY = "user";
+const TOKEN_KEY = "token";
+const EXPIRY_KEY = "expiry";
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
-  // 🔹 Check both storages on load
+  const clearStorage = () => {
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(EXPIRY_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(EXPIRY_KEY);
+  };
+
+  // Hydrate auth state on app load
   useEffect(() => {
-    const validateToken = async () => {
-      try {
-        const savedUser =
-          localStorage.getItem("user") || sessionStorage.getItem("user");
-        const savedToken =
-          localStorage.getItem("token") || sessionStorage.getItem("token");
+    const storedUser = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
+    const storedToken = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+    const expiry = localStorage.getItem(EXPIRY_KEY) || sessionStorage.getItem(EXPIRY_KEY);
 
-        if (savedUser && savedToken) {
-          const response = await fetch(`${API_BASE_URL}/api/validate-token`, {
-            headers: { Authorization: `Bearer ${savedToken}` },
-          });
-
-          if (response.ok) {
-            setUser(JSON.parse(savedUser));
-            setToken(savedToken);
-          } else {
-            logout();
-          }
-        } else {
-          logout();
-        }
-      } catch (err) {
-        console.error("Error validating token:", err);
+    if (storedUser && storedToken && expiry) {
+      const now = new Date().getTime();
+      if (now < Number(expiry)) {
+        setUser(JSON.parse(storedUser));
+        setToken(storedToken);
+      } else {
         logout();
       }
-    };
-
-    validateToken();
+    }
+    setLoading(false);
   }, []);
 
-  // 🔹 Login → store only in chosen storage
-  const login = useCallback(
-    (user: User, token: string, rememberMe: boolean) => {
-      setUser(user);
-      setToken(token);
+  // Login
+  const login = (user: User, token: string, rememberMe: boolean) => {
+    setUser(user);
+    setToken(token);
 
-      // Clear both storages first
-      localStorage.clear();
-      sessionStorage.clear();
+    clearStorage();
 
-      if (rememberMe) {
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("token", token);
-      } else {
-        sessionStorage.setItem("user", JSON.stringify(user));
-        sessionStorage.setItem("token", token);
-      }
+    const expiryTime = new Date().getTime() + EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
-      navigate("/dashboard");
-    },
-    [navigate]
-  );
+    if (rememberMe) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(EXPIRY_KEY, expiryTime.toString());
+    } else {
+      sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+      sessionStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.setItem(EXPIRY_KEY, expiryTime.toString());
+    }
+  };
 
-  // 🔹 Logout clears everything
-  const logout = useCallback(() => {
+  // Logout
+  const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.clear();
-    sessionStorage.clear();
-    navigate("/");
-  }, [navigate]);
+    clearStorage();
+  };
 
-  const value = useMemo(
-    () => ({ user, token, login, logout }),
-    [user, token, login, logout]
+  return (
+    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };

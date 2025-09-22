@@ -72,7 +72,7 @@
 //   name: string;
 // };
 
-// const API_BASE_URL = "http://192.168.1.82:5000";
+// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // const isValidPdiEntry = (entry: any): entry is PdiEntry => {
 //   return (
@@ -161,29 +161,29 @@
 //         const pdiJson = pdiRes.ok ? await pdiRes.json() : [];
 //         const normalizedPdiData = Array.isArray(pdiJson)
 //           ? pdiJson
-//               .map((pdi: PdiEntry, index: number) => ({
-//                 ...pdi,
-//                 pdiId: pdi.pdiId || `generated-${index}-${generateUUID()}`,
-//                 correctiveActions: (pdi.correctiveActions || []).map((action: Action) => ({
-//                   ...action,
-//                   actionId: action.actionId || generateUUID(),
-//                 })),
-//                 preventiveActions: (pdi.preventiveActions || []).map((action: Action) => ({
-//                   ...action,
-//                   actionId: action.actionId || generateUUID(),
-//                 })),
-//               }))
-//               .filter((pdi, index, self) => {
-//                 if (!pdi.pdiId) {
-//                   console.warn("PDI entry missing pdiId:", pdi);
-//                   return false;
-//                 }
-//                 const isUnique = self.findIndex((p) => p.pdiId === pdi.pdiId) === index;
-//                 if (!isUnique) {
-//                   console.warn("Duplicate pdiId detected:", pdi.pdiId, pdi);
-//                 }
-//                 return isUnique;
-//               })
+//             .map((pdi: PdiEntry, index: number) => ({
+//               ...pdi,
+//               pdiId: pdi.pdiId || `generated-${index}-${generateUUID()}`,
+//               correctiveActions: (pdi.correctiveActions || []).map((action: Action) => ({
+//                 ...action,
+//                 actionId: action.actionId || generateUUID(),
+//               })),
+//               preventiveActions: (pdi.preventiveActions || []).map((action: Action) => ({
+//                 ...action,
+//                 actionId: action.actionId || generateUUID(),
+//               })),
+//             }))
+//             .filter((pdi, index, self) => {
+//               if (!pdi.pdiId) {
+//                 console.warn("PDI entry missing pdiId:", pdi);
+//                 return false;
+//               }
+//               const isUnique = self.findIndex((p) => p.pdiId === pdi.pdiId) === index;
+//               if (!isUnique) {
+//                 console.warn("Duplicate pdiId detected:", pdi.pdiId, pdi);
+//               }
+//               return isUnique;
+//             })
 //           : [];
 //         setPdiData(normalizedPdiData);
 
@@ -250,13 +250,24 @@
 //     };
 //   }, [headers, toast]);
 
-//   const getProductName = useCallback(
-//     (id: string) => {
-//       const prod = products.find((p) => p.productId === id);
-//       return prod ? prod.name : id || "Unknown";
-//     },
-//     [products]
-//   );
+//   const productMap = useMemo(() => {
+//   const map: Record<string, string> = {};
+//   products.forEach((p) => {
+//     if (p.productId && p.name) {
+//       map[p.productId] = p.name;
+//     }
+//   });
+//   return map;
+// }, [products]);
+
+// const getProductName = useCallback(
+//   (id: string) => {
+//     if (!id) return "Unknown Product";
+//     return productMap[id] ?? "Unknown Product";
+//   },
+//   [productMap]
+// );
+
 
 //   const getEmployeeName = useCallback(
 //     (id: string) => {
@@ -339,62 +350,109 @@
 //     setPdiForm((prev) => ({ ...prev, [field]: value }));
 //   }, []);
 
+//   const [formErrors, setFormErrors] = useState<Partial<Record<keyof typeof pdiForm, string> & {
+//     pdiCorrectiveActions?: { [index: number]: Partial<Action> & { general?: string } },
+//     pdiPreventiveActions?: { [index: number]: Partial<Action> & { general?: string } }
+//   }>>({});
+
 //   const validateForm = useCallback(() => {
-//     const errors: string[] = [];
+//     const errors: Partial<Record<keyof typeof pdiForm, string> & {
+//       pdiCorrectiveActions?: { [index: number]: Partial<Action> & { general?: string } },
+//       pdiPreventiveActions?: { [index: number]: Partial<Action> & { general?: string } }
+//     }> = {};
 
-//     if (!pdiForm.defectName) errors.push("Defect name is required.");
-//     if (!pdiForm.areaOfDefect) errors.push("Area of defect is required.");
-//     if (!pdiForm.quantity || isNaN(parseInt(pdiForm.quantity, 10)))
-//       errors.push("Quantity must be a valid number.");
-//     if (parseInt(pdiForm.quantity, 10) < 0) errors.push("Quantity cannot be negative.");
-//     if (!pdiForm.inspector) errors.push("Inspector name is required.");
-//     if (!pdiForm.severity) errors.push("Severity is required.");
-//     if (!pdiForm.date) errors.push("Date is required.");
-//     if (new Date(pdiForm.date) > new Date()) errors.push("Date cannot be in the future.");
-//     if (!pdiForm.shift) errors.push("Shift is required.");
-//     if (!pdiForm.product) errors.push("Product is required.");
+//     // Required fields validation
+//     if (!pdiForm.defectName) {
+//       errors.defectName = "This field is required.";
+//     }
+//     if (!pdiForm.areaOfDefect) {
+//       errors.areaOfDefect = "This field is required.";
+//     }
+//     if (!pdiForm.quantity) {
+//       errors.quantity = "This field is required.";
+//     } else if (isNaN(parseInt(pdiForm.quantity, 10))) {
+//       errors.quantity = "Quantity must be a valid number.";
+//     } else if (parseInt(pdiForm.quantity, 10) < 0) {
+//       errors.quantity = "Quantity cannot be negative.";
+//     }
+//     if (!pdiForm.inspector) {
+//       errors.inspector = "This field is required.";
+//     }
+//     if (!pdiForm.severity) {
+//       errors.severity = "This field is required.";
+//     }
+//     if (!pdiForm.date) {
+//       errors.date = "This field is required.";
+//     } else if (new Date(pdiForm.date) > new Date()) {
+//       errors.date = "Date cannot be in the future.";
+//     }
+//     if (!pdiForm.shift) {
+//       errors.shift = "This field is required.";
+//     }
+//     if (!pdiForm.product) {
+//       errors.product = "This field is required.";
+//     }
 
+//     // Actions validation when editing
 //     if (editingPdiId) {
-//       if (pdiCorrectiveActions.length === 0)
-//         errors.push("At least one corrective action is required.");
-//       if (pdiPreventiveActions.length === 0)
-//         errors.push("At least one preventive action is required.");
-
-//       if (
-//         pdiCorrectiveActions.some(
-//           (a) =>
-//             !a.action ||
-//             !a.responsible ||
-//             !a.dueDate ||
-//             new Date(a.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
-//         )
-//       ) {
-//         errors.push("All corrective actions must be complete and have valid due dates.");
+//       const correctiveErrors: { [index: number]: Partial<Action> } = {};
+//       if (pdiCorrectiveActions.length === 0) {
+//         errors.pdiCorrectiveActions = { general: "At least one corrective action is required." };
+//       } else {
+//         pdiCorrectiveActions.forEach((action, index) => {
+//           const actionErrors: Partial<Action> = {};
+//           if (!action.action) {
+//             actionErrors.action = "This field is required.";
+//           }
+//           if (!action.responsible) {
+//             actionErrors.responsible = "This field is required.";
+//           }
+//           if (!action.dueDate) {
+//             actionErrors.dueDate = "This field is required.";
+//           } else if (new Date(action.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
+//             actionErrors.dueDate = "Due date cannot be in the past.";
+//           }
+//           if (Object.keys(actionErrors).length > 0) {
+//             correctiveErrors[index] = actionErrors;
+//           }
+//         });
+//         if (Object.keys(correctiveErrors).length > 0) {
+//           errors.pdiCorrectiveActions = { ...errors.pdiCorrectiveActions, ...correctiveErrors };
+//         }
 //       }
 
-//       if (
-//         pdiPreventiveActions.some(
-//           (a) =>
-//             !a.action ||
-//             !a.responsible ||
-//             !a.dueDate ||
-//             new Date(a.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
-//         )
-//       ) {
-//         errors.push("All preventive actions must be complete and have valid due dates.");
+//       const preventiveErrors: { [index: number]: Partial<Action> } = {};
+//       if (pdiPreventiveActions.length === 0) {
+//         errors.pdiPreventiveActions = { general: "At least one preventive action is required." };
+//       } else {
+//         pdiPreventiveActions.forEach((action, index) => {
+//           const actionErrors: Partial<Action> = {};
+//           if (!action.action) {
+//             actionErrors.action = "This field is required.";
+//           }
+//           if (!action.responsible) {
+//             actionErrors.responsible = "This field is required.";
+//           }
+//           if (!action.dueDate) {
+//             actionErrors.dueDate = "This field is required.";
+//           } else if (new Date(action.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
+//             actionErrors.dueDate = "Due date cannot be in the past.";
+//           }
+//           if (Object.keys(actionErrors).length > 0) {
+//             preventiveErrors[index] = actionErrors;
+//           }
+//         });
+//         if (Object.keys(preventiveErrors).length > 0) {
+//           errors.pdiPreventiveActions = { ...errors.pdiPreventiveActions, ...preventiveErrors };
+//         }
 //       }
 //     }
 
-//     if (errors.length > 0) {
-//       toast({
-//         variant: "destructive",
-//         title: "Validation Error",
-//         description: errors.join(" "),
-//       });
-//       return errors;
-//     }
-//     return null;
-//   }, [pdiForm, pdiCorrectiveActions, pdiPreventiveActions, editingPdiId, toast]);
+//     setFormErrors(errors);
+
+//     // If there are no errors, the form is valid
+//     return Object.keys(errors).length === 0;
+//   }, [pdiForm, pdiCorrectiveActions, pdiPreventiveActions, editingPdiId]);
 
 //   const handleEditActions = useCallback(
 //     (pdi: PdiEntry) => {
@@ -413,21 +471,21 @@
 //       setPdiCorrectiveActions(
 //         pdi.correctiveActions.length > 0
 //           ? pdi.correctiveActions.map((action) => ({
-//               actionId: action.actionId || generateUUID(),
-//               action: action.action,
-//               responsible: action.responsible,
-//               dueDate: action.dueDate ? format(parseISO(action.dueDate), "yyyy-MM-dd") : "",
-//             }))
+//             actionId: action.actionId || generateUUID(),
+//             action: action.action,
+//             responsible: action.responsible,
+//             dueDate: action.dueDate ? format(parseISO(action.dueDate), "yyyy-MM-dd") : "",
+//           }))
 //           : []
 //       );
 //       setPdiPreventiveActions(
 //         pdi.preventiveActions.length > 0
 //           ? pdi.preventiveActions.map((action) => ({
-//               actionId: action.actionId || generateUUID(),
-//               action: action.action,
-//               responsible: action.responsible,
-//               dueDate: action.dueDate ? format(parseISO(action.dueDate), "yyyy-MM-dd") : "",
-//             }))
+//             actionId: action.actionId || generateUUID(),
+//             action: action.action,
+//             responsible: action.responsible,
+//             dueDate: action.dueDate ? format(parseISO(action.dueDate), "yyyy-MM-dd") : "",
+//           }))
 //           : []
 //       );
 //       setIsAddingPDI(true);
@@ -451,15 +509,18 @@
 //     setPdiPreventiveActions([]);
 //     setEditingPdiId(null);
 //     setError(null);
+//     setFormErrors({});
 //   }, []);
 
 //   const handleSubmitPDI = useCallback(async () => {
-//     const validationError = validateForm();
-//     if (validationError) {
-//       setError(validationError);
+//     if (!validateForm()) {
+//       toast({
+//         variant: "destructive",
+//         title: "Validation Error",
+//         description: "Please correct the errors in the form before submitting.",
+//       });
 //       return;
 //     }
-
 //     setIsSubmitting(true);
 //     try {
 //       const newEntry = {
@@ -478,6 +539,14 @@
 //       });
 
 //       if (!response.ok) {
+//         if (response.status === 401) {
+//           toast({
+//             variant: "destructive",
+//             title: "Session Expired",
+//             description: "Please log in again.",
+//           });
+//           // Redirect to login or handle token refresh
+//         }
 //         const errorData = await response.json();
 //         throw new Error(errorData.message || `Failed to ${editingPdiId ? "update" : "save"} PDI entry.`);
 //       }
@@ -641,22 +710,13 @@
 //       actions,
 //       setActions,
 //       title,
+//       errors,
 //     }: {
 //       actions: Action[];
 //       setActions: React.Dispatch<React.SetStateAction<Action[]>>;
 //       title: string;
+//       errors?: { [index: number]: Partial<Action> };
 //     }) => {
-//       const getFieldError = (action: Action, field: keyof Action) => {
-//         if (field === "dueDate") {
-//           return !action[field]
-//             ? `${title} ${field} is required.`
-//             : new Date(action[field]).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
-//             ? "Due date cannot be in the past."
-//             : "";
-//         }
-//         return !action[field] ? `${title} ${field} is required.` : "";
-//       };
-
 //       const [localActionValues, setLocalActionValues] = useState<{
 //         [key: string]: string;
 //       }>(
@@ -704,11 +764,11 @@
 //                   onChange={(e) => handleActionChange(item.actionId, e.target.value)}
 //                   onBlur={() => handleActionBlur(index, item.actionId)}
 //                   placeholder="Describe the action"
-//                   className={`min-h-[60px] ${getFieldError(item, "action") ? "border-red-500" : ""}`}
+//                   className={`min-h-[60px] ${errors?.[index]?.action ? "border-red-500" : ""}`}
 //                   aria-label={`${title} action ${index + 1}`}
 //                 />
-//                 {getFieldError(item, "action") && (
-//                   <p className="text-red-600 text-sm">{getFieldError(item, "action")}</p>
+//                 {errors?.[index]?.action && (
+//                   <p className="text-red-600 text-sm">{errors[index].action}</p>
 //                 )}
 //               </div>
 //               <div className="col-span-3">
@@ -728,8 +788,8 @@
 //                     ))}
 //                   </SelectContent>
 //                 </Select>
-//                 {getFieldError(item, "responsible") && (
-//                   <p className="text-red-600 text-sm">{getFieldError(item, "responsible")}</p>
+//                 {errors?.[index]?.responsible && (
+//                   <p className="text-red-600 text-sm">{errors[index].responsible}</p>
 //                 )}
 //               </div>
 //               <div className="col-span-3">
@@ -744,11 +804,11 @@
 //                   }
 //                   min={new Date().toISOString().split("T")[0]}
 //                   onChange={(e) => updateAction(index, "dueDate", e.target.value, setActions)}
-//                   className={getFieldError(item, "dueDate") ? "border-red-500" : ""}
+//                   className={errors?.[index]?.dueDate ? "border-red-500" : ""}
 //                   aria-label={`${title} due date ${index + 1}`}
 //                 />
-//                 {getFieldError(item, "dueDate") && (
-//                   <p className="text-red-600 text-sm">{getFieldError(item, "dueDate")}</p>
+//                 {errors?.[index]?.dueDate && (
+//                   <p className="text-red-600 text-sm">{errors[index].dueDate}</p>
 //                 )}
 //               </div>
 //               <div className="col-span-1">
@@ -883,29 +943,29 @@
 //                 const pdiJson = pdiRes.ok ? await pdiRes.json() : [];
 //                 const normalizedPdiData = Array.isArray(pdiJson)
 //                   ? pdiJson
-//                       .map((pdi: PdiEntry, index: number) => ({
-//                         ...pdi,
-//                         pdiId: pdi.pdiId || `generated-${index}-${generateUUID()}`,
-//                         correctiveActions: (pdi.correctiveActions || []).map((action: Action) => ({
-//                           ...action,
-//                           actionId: action.actionId || generateUUID(),
-//                         })),
-//                         preventiveActions: (pdi.preventiveActions || []).map((action: Action) => ({
-//                           ...action,
-//                           actionId: action.actionId || generateUUID(),
-//                         })),
-//                       }))
-//                       .filter((pdi, index, self) => {
-//                         if (!pdi.pdiId) {
-//                           console.warn("PDI entry missing pdiId:", pdi);
-//                           return false;
-//                         }
-//                         const isUnique = self.findIndex((p) => p.pdiId === pdi.pdiId) === index;
-//                         if (!isUnique) {
-//                           console.warn("Duplicate pdiId detected:", pdi.pdiId, pdi);
-//                         }
-//                         return isUnique;
-//                       })
+//                     .map((pdi: PdiEntry, index: number) => ({
+//                       ...pdi,
+//                       pdiId: pdi.pdiId || `generated-${index}-${generateUUID()}`,
+//                       correctiveActions: (pdi.correctiveActions || []).map((action: Action) => ({
+//                         ...action,
+//                         actionId: action.actionId || generateUUID(),
+//                       })),
+//                       preventiveActions: (pdi.preventiveActions || []).map((action: Action) => ({
+//                         ...action,
+//                         actionId: action.actionId || generateUUID(),
+//                       })),
+//                     }))
+//                     .filter((pdi, index, self) => {
+//                       if (!pdi.pdiId) {
+//                         console.warn("PDI entry missing pdiId:", pdi);
+//                         return false;
+//                       }
+//                       const isUnique = self.findIndex((p) => p.pdiId === pdi.pdiId) === index;
+//                       if (!isUnique) {
+//                         console.warn("Duplicate pdiId detected:", pdi.pdiId, pdi);
+//                       }
+//                       return isUnique;
+//                     })
 //                   : [];
 //                 setPdiData(normalizedPdiData);
 
@@ -986,10 +1046,10 @@
 //                 </Button>
 //               </DialogTrigger>
 //               <DialogContent
-//                 className="max-w-4xl max-h-[90vh] overflow-y-auto"
+//                 className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto"
 //                 aria-describedby="dialog-description-text"
 //                 onOpenAutoFocus={(e) => {
-//                   const firstInput = e.currentTarget.querySelector("#areaOfDefect");
+//                   const firstInput = e.currentTarget.querySelector("#defectName");
 //                   firstInput?.focus();
 //                 }}
 //               >
@@ -1017,7 +1077,7 @@
 //                         value={pdiForm.defectName}
 //                         onValueChange={(value) => handleInputChange("defectName", value)}
 //                       >
-//                         <SelectTrigger aria-label="Select defect name">
+//                         <SelectTrigger id="defectName" aria-label="Select defect name">
 //                           <SelectValue placeholder="Select defect" />
 //                         </SelectTrigger>
 //                         <SelectContent>
@@ -1035,6 +1095,7 @@
 //                           )}
 //                         </SelectContent>
 //                       </Select>
+//                       {formErrors.defectName && <p className="text-red-500 text-sm">{formErrors.defectName}</p>}
 //                     </div>
 //                     <div className="space-y-2">
 //                       <Label htmlFor="areaOfDefect">Area of Defect</Label>
@@ -1053,6 +1114,7 @@
 //                           ))}
 //                         </SelectContent>
 //                       </Select>
+//                       {formErrors.areaOfDefect && <p className="text-red-500 text-sm">{formErrors.areaOfDefect}</p>}
 //                     </div>
 //                   </div>
 //                   <div className="grid grid-cols-3 gap-4">
@@ -1065,32 +1127,33 @@
 //                         onChange={(e) => handleInputChange("quantity", e.target.value)}
 //                         placeholder="Enter quantity"
 //                         aria-label="Defect quantity"
-//                         aria-invalid={!!error && !pdiForm.quantity}
 //                       />
+//                       {formErrors.quantity && <p className="text-red-500 text-sm">{formErrors.quantity}</p>}
 //                     </div>
 //                     <div className="space-y-2">
 //                       <Label htmlFor="inspector">Inspector Name</Label>
-//                       {employees.some((emp) => emp.role === "Quality Inspector") ? (
-//                         <Select
-//                           value={pdiForm.inspector}
-//                           onValueChange={(value) => handleInputChange("inspector", value)}
-//                         >
-//                           <SelectTrigger aria-label="Select inspector">
-//                             <SelectValue placeholder="Select inspector" />
-//                           </SelectTrigger>
-//                           <SelectContent>
-//                             {employees
-//                               .filter((emp) => emp.role === "Quality Inspector")
-//                               .map((emp) => (
-//                                 <SelectItem key={emp.employeeId} value={emp.employeeId}>
-//                                   {emp.name}
-//                                 </SelectItem>
-//                               ))}
-//                           </SelectContent>
-//                         </Select>
-//                       ) : (
-//                         <p className="text-sm text-red-600">No quality inspectors available.</p>
-//                       )}
+//                       <Select
+//                         value={pdiForm.inspector}
+//                         onValueChange={(value) => handleInputChange("inspector", value)}
+//                       >
+//                         <SelectTrigger aria-label="Select inspector">
+//                           <SelectValue placeholder="Select inspector" />
+//                         </SelectTrigger>
+//                         <SelectContent>
+//                           {employees.length > 0 ? (
+//                             employees.map((emp) => (
+//                               <SelectItem key={emp.employeeId} value={emp.employeeId}>
+//                                 {emp.name}
+//                               </SelectItem>
+//                             ))
+//                           ) : (
+//                             <div className="px-2 py-1 text-sm text-gray-500">
+//                               No Employees found. Contact admin to add employees.
+//                             </div>
+//                           )}
+//                         </SelectContent>
+//                       </Select>
+//                       {formErrors.inspector && <p className="text-red-500 text-sm">{formErrors.inspector}</p>}
 //                     </div>
 //                     <div className="space-y-2">
 //                       <Label htmlFor="severity">Severity</Label>
@@ -1107,6 +1170,7 @@
 //                           <SelectItem value="high">High</SelectItem>
 //                         </SelectContent>
 //                       </Select>
+//                       {formErrors.severity && <p className="text-red-500 text-sm">{formErrors.severity}</p>}
 //                     </div>
 //                     <div className="space-y-2">
 //                       <Label htmlFor="date">Date</Label>
@@ -1117,8 +1181,8 @@
 //                         onChange={(e) => handleInputChange("date", e.target.value)}
 //                         max={new Date().toISOString().split("T")[0]}
 //                         aria-label="Inspection date"
-//                         aria-invalid={!!error && !pdiForm.date}
 //                       />
+//                       {formErrors.date && <p className="text-red-500 text-sm">{formErrors.date}</p>}
 //                     </div>
 //                     <div className="space-y-2">
 //                       <Label htmlFor="shift">Shift</Label>
@@ -1135,6 +1199,7 @@
 //                           <SelectItem value="C">Shift C</SelectItem>
 //                         </SelectContent>
 //                       </Select>
+//                       {formErrors.shift && <p className="text-red-500 text-sm">{formErrors.shift}</p>}
 //                     </div>
 //                     <div className="space-y-2">
 //                       <Label>Product Name</Label>
@@ -1146,26 +1211,43 @@
 //                           <SelectValue placeholder="Select product" />
 //                         </SelectTrigger>
 //                         <SelectContent>
-//                           {products.map((prod) => (
-//                             <SelectItem key={prod.productId} value={prod.productId}>
-//                               {prod.name}
-//                             </SelectItem>
-//                           ))}
+//                           {isLoadingProducts ? (
+//                             <div className="text-center py-2">Loading products...</div>
+//                           ) : products.length > 0 ? (
+//                             products.map((prod) => (
+//                               <SelectItem key={prod.productId} value={prod.productId}>
+//                                 {prod.name}
+//                               </SelectItem>
+//                             ))
+//                           ) : (
+//                             <div className="text-center py-2 text-gray-500">
+//                               No products found. Contact admin to add products.
+//                             </div>
+//                           )}
 //                         </SelectContent>
 //                       </Select>
+//                       {formErrors.product && <p className="text-red-500 text-sm">{formErrors.product}</p>}
 //                     </div>
 //                   </div>
 //                   {editingPdiId && (
 //                     <>
+//                       {formErrors.pdiCorrectiveActions?.general && (
+//                         <p className="text-red-500 text-sm">{formErrors.pdiCorrectiveActions.general}</p>
+//                       )}
 //                       <ActionInputs
 //                         actions={pdiCorrectiveActions}
 //                         setActions={setPdiCorrectiveActions}
 //                         title="Corrective Actions"
+//                         errors={formErrors.pdiCorrectiveActions}
 //                       />
+//                       {formErrors.pdiPreventiveActions?.general && (
+//                         <p className="text-red-500 text-sm">{formErrors.pdiPreventiveActions.general}</p>
+//                       )}
 //                       <ActionInputs
 //                         actions={pdiPreventiveActions}
 //                         setActions={setPdiPreventiveActions}
 //                         title="Preventive Actions"
+//                         errors={formErrors.pdiPreventiveActions}
 //                       />
 //                     </>
 //                   )}
@@ -1214,34 +1296,44 @@
 // export default Downtime;
 
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+
+
+
+
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { format, parseISO } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Plus, CheckCircle, Link, Trash2, Clock } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { generateUUID } from "@/utils/utils";
 import { useAuth } from "@/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 
+// Lazy-load UI components to reduce initial bundle size
+const Card = lazy(() => import("@/components/ui/card").then((module) => ({ default: module.Card })));
+const CardContent = lazy(() => import("@/components/ui/card").then((module) => ({ default: module.CardContent })));
+const CardHeader = lazy(() => import("@/components/ui/card").then((module) => ({ default: module.CardHeader })));
+const CardTitle = lazy(() => import("@/components/ui/card").then((module) => ({ default: module.CardTitle })));
+const Button = lazy(() => import("@/components/ui/button").then((module) => ({ default: module.Button })));
+const Input = lazy(() => import("@/components/ui/input").then((module) => ({ default: module.Input })));
+const Label = lazy(() => import("@/components/ui/label").then((module) => ({ default: module.Label })));
+const Badge = lazy(() => import("@/components/ui/badge").then((module) => ({ default: module.Badge })));
+const Dialog = lazy(() => import("@/components/ui/dialog").then((module) => ({ default: module.Dialog })));
+const DialogContent = lazy(() => import("@/components/ui/dialog").then((module) => ({ default: module.DialogContent })));
+const DialogHeader = lazy(() => import("@/components/ui/dialog").then((module) => ({ default: module.DialogHeader })));
+const DialogTitle = lazy(() => import("@/components/ui/dialog").then((module) => ({ default: module.DialogTitle })));
+const DialogDescription = lazy(() => import("@/components/ui/dialog").then((module) => ({ default: module.DialogDescription })));
+const DialogTrigger = lazy(() => import("@/components/ui/dialog").then((module) => ({ default: module.DialogTrigger })));
+const Select = lazy(() => import("@/components/ui/select").then((module) => ({ default: module.Select })));
+const SelectContent = lazy(() => import("@/components/ui/select").then((module) => ({ default: module.SelectContent })));
+const SelectItem = lazy(() => import("@/components/ui/select").then((module) => ({ default: module.SelectItem })));
+const SelectTrigger = lazy(() => import("@/components/ui/select").then((module) => ({ default: module.SelectTrigger })));
+const SelectValue = lazy(() => import("@/components/ui/select").then((module) => ({ default: module.SelectValue })));
+const Textarea = lazy(() => import("@/components/ui/textarea").then((module) => ({ default: module.Textarea })));
+const Plus = lazy(() => import("lucide-react").then((module) => ({ default: module.Plus })));
+const CheckCircle = lazy(() => import("lucide-react").then((module) => ({ default: module.CheckCircle })));
+const Link = lazy(() => import("lucide-react").then((module) => ({ default: module.Link })));
+const Trash2 = lazy(() => import("lucide-react").then((module) => ({ default: module.Trash2 })));
+const Clock = lazy(() => import("lucide-react").then((module) => ({ default: module.Clock })));
+
+// Interfaces for type safety
 interface Action {
   actionId: string;
   action: string;
@@ -1259,18 +1351,18 @@ interface PdiEntry {
   areaOfDefect: string;
   quantity: number;
   inspector: string;
-  status: string;
-  severity: string;
+  status: "Open" | "In Progress" | "Closed";
+  severity: "low" | "medium" | "high";
   correctiveActions: Action[];
   preventiveActions: Action[];
 }
 
-type Defect = {
+interface Defect {
   defectId: string;
   name: string;
   defectType: string;
   status: string;
-};
+}
 
 interface ProductionData {
   recordId: string;
@@ -1283,40 +1375,69 @@ interface Employee {
   role: string;
 }
 
-type Product = {
+interface Product {
   productId: string;
   name: string;
-};
+}
 
-const API_BASE_URL = "http://localhost:5000";
+interface PdiForm {
+  productionCode: string;
+  defectName: string;
+  areaOfDefect: string;
+  quantity: string;
+  inspector: string;
+  severity: string;
+  date: string;
+  shift: string;
+  product: string;
+}
 
-const isValidPdiEntry = (entry: any): entry is PdiEntry => {
-  return (
-    entry &&
-    typeof entry.pdiId === "string" &&
-    typeof entry.productionCode === "string" &&
-    typeof entry.product === "string" &&
-    typeof entry.date === "string" &&
-    typeof entry.shift === "string" &&
-    typeof entry.defectName === "string" &&
-    typeof entry.areaOfDefect === "string" &&
-    typeof entry.quantity === "number" &&
-    typeof entry.inspector === "string" &&
-    typeof entry.status === "string" &&
-    typeof entry.severity === "string" &&
-    Array.isArray(entry.correctiveActions) &&
-    Array.isArray(entry.preventiveActions)
-  );
-};
-
-const areaOfDefect = [
+// Constants
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const AREA_OF_DEFECT = [
   { value: "assembly", label: "Assembly" },
   { value: "molding", label: "Molding" },
   { value: "storage", label: "Storage" },
   { value: "pdi", label: "PDI" },
-];
+] as const;
 
-const Downtime = () => {
+// Validation utility
+const isValidPdiEntry = (entry: unknown): entry is PdiEntry => {
+  return (
+    !!entry &&
+    typeof (entry as PdiEntry).pdiId === "string" &&
+    typeof (entry as PdiEntry).productionCode === "string" &&
+    typeof (entry as PdiEntry).product === "string" &&
+    typeof (entry as PdiEntry).date === "string" &&
+    typeof (entry as PdiEntry).shift === "string" &&
+    typeof (entry as PdiEntry).defectName === "string" &&
+    typeof (entry as PdiEntry).areaOfDefect === "string" &&
+    typeof (entry as PdiEntry).quantity === "number" &&
+    typeof (entry as PdiEntry).inspector === "string" &&
+    typeof (entry as PdiEntry).status === "string" &&
+    typeof (entry as PdiEntry).severity === "string" &&
+    Array.isArray((entry as PdiEntry).correctiveActions) &&
+    Array.isArray((entry as PdiEntry).preventiveActions)
+  );
+};
+
+// Error Boundary Component
+const ErrorBoundary: React.FC<{ children: React.ReactNode; fallback: React.ReactNode }> = ({
+  children,
+  fallback,
+}) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const errorHandler = () => setHasError(true);
+    window.addEventListener("error", errorHandler);
+    return () => window.removeEventListener("error", errorHandler);
+  }, []);
+
+  return hasError ? <>{fallback}</> : <>{children}</>;
+};
+
+const Downtime: React.FC = () => {
   const { token } = useAuth();
   const { toast } = useToast();
 
@@ -1325,7 +1446,7 @@ const Downtime = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string[] | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [pdiForm, setPdiForm] = useState({
+  const [pdiForm, setPdiForm] = useState<PdiForm>({
     productionCode: "",
     defectName: "",
     areaOfDefect: "",
@@ -1343,10 +1464,8 @@ const Downtime = () => {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [productionData, setProductionData] = useState<ProductionData[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filterStatus, setFilterStatus] = useState<string>("All");
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<"All" | "Open" | "In Progress" | "Closed">("All");
   const [defects, setDefects] = useState<Defect[]>([]);
-  const [isLoadingDefects, setIsLoadingDefects] = useState(false);
 
   const headers = useMemo(
     () => ({
@@ -1356,173 +1475,112 @@ const Downtime = () => {
     [token]
   );
 
+  // Fetch data with AbortController for cleanup
   useEffect(() => {
-    let mounted = true;
-
+    const controller = new AbortController();
     const fetchData = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const [pdiRes, productionRes, employeeRes, defectRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/pdi`, { headers }),
-          fetch(`${API_BASE_URL}/api/production`, { headers }),
-          fetch(`${API_BASE_URL}/api/employees`, { headers }),
-          fetch(`${API_BASE_URL}/api/defects`, { headers }),
+        const [pdiRes, productionRes, employeeRes, defectRes, productRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/pdi`, { headers, signal: controller.signal }),
+          fetch(`${API_BASE_URL}/api/production`, { headers, signal: controller.signal }),
+          fetch(`${API_BASE_URL}/api/employees`, { headers, signal: controller.signal }),
+          fetch(`${API_BASE_URL}/api/defects`, { headers, signal: controller.signal }),
+          fetch(`${API_BASE_URL}/api/products`, { headers, signal: controller.signal }),
         ]);
 
-        if (!mounted) return;
-
-        // PDI
         const pdiJson = pdiRes.ok ? await pdiRes.json() : [];
         const normalizedPdiData = Array.isArray(pdiJson)
           ? pdiJson
-            .map((pdi: PdiEntry, index: number) => ({
-              ...pdi,
-              pdiId: pdi.pdiId || `generated-${index}-${generateUUID()}`,
-              correctiveActions: (pdi.correctiveActions || []).map((action: Action) => ({
-                ...action,
-                actionId: action.actionId || generateUUID(),
-              })),
-              preventiveActions: (pdi.preventiveActions || []).map((action: Action) => ({
-                ...action,
-                actionId: action.actionId || generateUUID(),
-              })),
-            }))
-            .filter((pdi, index, self) => {
-              if (!pdi.pdiId) {
-                console.warn("PDI entry missing pdiId:", pdi);
-                return false;
-              }
-              const isUnique = self.findIndex((p) => p.pdiId === pdi.pdiId) === index;
-              if (!isUnique) {
-                console.warn("Duplicate pdiId detected:", pdi.pdiId, pdi);
-              }
-              return isUnique;
-            })
+              .map((pdi: PdiEntry, index: number) => ({
+                ...pdi,
+                pdiId: pdi.pdiId || `generated-${index}-${generateUUID()}`,
+                correctiveActions: (pdi.correctiveActions || []).map((action: Action) => ({
+                  ...action,
+                  actionId: action.actionId || generateUUID(),
+                })),
+                preventiveActions: (pdi.preventiveActions || []).map((action: Action) => ({
+                  ...action,
+                  actionId: action.actionId || generateUUID(),
+                })),
+              }))
+              .filter((pdi, index, self) => {
+                if (!pdi.pdiId) return false;
+                return self.findIndex((p) => p.pdiId === pdi.pdiId) === index;
+              })
           : [];
         setPdiData(normalizedPdiData);
 
-        // Production
         const productionJson = productionRes.ok ? await productionRes.json() : { records: [] };
         setProductionData(productionJson.records || []);
 
-        // Employees
         const employeeJson = employeeRes.ok ? await employeeRes.json() : [];
         setEmployees(Array.isArray(employeeJson) ? employeeJson : []);
 
-        // Defects
         const defectJson = defectRes.ok ? await defectRes.json() : [];
         setDefects(Array.isArray(defectJson) ? defectJson : []);
+
+        const productJson = productRes.ok ? await productRes.json() : [];
+        setProducts(Array.isArray(productJson) ? productJson : []);
       } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(["Failed to load some data. Partial data may be displayed."]);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load data. Partial data may be displayed.",
-        });
+        if (err instanceof Error && err.name !== "AbortError") {
+          setError(["Failed to load data. Partial data may be displayed."]);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load data.",
+          });
+        }
       } finally {
-        if (mounted) setIsLoading(false);
+        setIsLoading(false);
       }
     };
 
     fetchData();
-
-    return () => {
-      mounted = false;
-    };
+    return () => controller.abort();
   }, [headers, toast]);
 
-  useEffect(() => {
-    let mounted = true;
+  const productMap = useMemo(() => {
+    return Object.fromEntries(products.map((p) => [p.productId, p.name]));
+  }, [products]);
 
-    const fetchProducts = async () => {
-      setIsLoadingProducts(true);
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/products`, { headers });
-        if (!res.ok) throw new Error("Failed to fetch products");
-        const data = await res.json();
-        if (mounted) setProducts(data);
-      } catch (err) {
-        console.error("Error fetching products:", err);
-        if (mounted) {
-          setProducts([]);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to fetch products. Please try again.",
-          });
-        }
-      } finally {
-        if (mounted) setIsLoadingProducts(false);
-      }
-    };
-
-    fetchProducts();
-
-    return () => {
-      mounted = false;
-    };
-  }, [headers, toast]);
-
-  const getProductName = useCallback(
-    (id: string) => {
-      const prod = products.find((p) => p.productId === id);
-      return prod ? prod.name : id || "Unknown";
-    },
-    [products]
-  );
+  const getProductName = useCallback((id: string) => productMap[id] ?? "Unknown Product", [productMap]);
 
   const getEmployeeName = useCallback(
-    (id: string) => {
-      return employees.find((emp) => emp.employeeId === id)?.name || id;
-    },
+    (id: string) => employees.find((emp) => emp.employeeId === id)?.name || id,
     [employees]
   );
 
-  const filteredPdiData = useMemo(() => {
-    return pdiData.filter((pdi) => {
-      if (!pdi.pdiId) {
-        console.warn("PDI entry missing pdiId in filteredPdiData:", pdi);
-        return false;
-      }
-      return filterStatus === "All" ? true : pdi.status === filterStatus;
-    });
-  }, [pdiData, filterStatus]);
+  const filteredPdiData = useMemo(
+    () => pdiData.filter((pdi) => filterStatus === "All" || pdi.status === filterStatus),
+    [pdiData, filterStatus]
+  );
 
   const getStatusColor = useCallback((status: string) => {
-    switch (status) {
-      case "Open":
-        return "bg-red-100 text-red-800 border-red-800";
-      case "Closed":
-        return "bg-green-100 text-green-800 border-green-800";
-      case "In Progress":
-        return "bg-yellow-100 text-yellow-800 border-yellow-800";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-800";
-    }
+    const colors: Record<string, string> = {
+      Open: "bg-red-100 text-red-800 border-red-800",
+      Closed: "bg-green-100 text-green-800 border-green-800",
+      "In Progress": "bg-yellow-100 text-yellow-800 border-yellow-800",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800 border-gray-800";
   }, []);
 
-  const getSeverityColor = useCallback((status: string) => {
-    switch (status) {
-      case "high":
-        return "bg-red-500";
-      case "medium":
-        return "bg-yellow-500";
-      case "low":
-        return "bg-green-500";
-      default:
-        return "bg-gray-500";
-    }
+  const getSeverityColor = useCallback((severity: string) => {
+    const colors: Record<string, string> = {
+      high: "bg-red-500",
+      medium: "bg-yellow-500",
+      low: "bg-green-500",
+    };
+    return colors[severity] || "bg-gray-500";
   }, []);
 
   const addAction = useCallback((setter: React.Dispatch<React.SetStateAction<Action[]>>) => {
-    const newActionId = generateUUID();
     setter((prev) => [
       ...prev,
       {
-        actionId: newActionId,
+        actionId: generateUUID(),
         action: "",
         responsible: "",
         dueDate: format(new Date(), "yyyy-MM-dd"),
@@ -1544,112 +1602,105 @@ const Downtime = () => {
       value: string,
       setter: React.Dispatch<React.SetStateAction<Action[]>>
     ) => {
-      setter((prev) =>
-        prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-      );
+      setter((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
     },
     []
   );
 
-  const handleInputChange = useCallback((field: keyof typeof pdiForm, value: string) => {
+  const handleInputChange = useCallback((field: keyof PdiForm, value: string) => {
     setPdiForm((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const validateForm = useCallback(() => {
-    const errors: string[] = [];
+  const [formErrors, setFormErrors] = useState<
+    Partial<Record<keyof PdiForm, string> & {
+      pdiCorrectiveActions?: { [index: number]: Partial<Action> & { general?: string } };
+      pdiPreventiveActions?: { [index: number]: Partial<Action> & { general?: string } };
+    }>
+  >({});
 
-    if (!pdiForm.defectName) errors.push("Defect name is required.");
-    if (!pdiForm.areaOfDefect) errors.push("Area of defect is required.");
-    if (!pdiForm.quantity || isNaN(parseInt(pdiForm.quantity, 10)))
-      errors.push("Quantity must be a valid number.");
-    if (parseInt(pdiForm.quantity, 10) < 0) errors.push("Quantity cannot be negative.");
-    if (!pdiForm.inspector) errors.push("Inspector name is required.");
-    if (!pdiForm.severity) errors.push("Severity is required.");
-    if (!pdiForm.date) errors.push("Date is required.");
-    if (new Date(pdiForm.date) > new Date()) errors.push("Date cannot be in the future.");
-    if (!pdiForm.shift) errors.push("Shift is required.");
-    if (!pdiForm.product) errors.push("Product is required.");
+  const validateForm = useCallback(() => {
+    const errors: typeof formErrors = {};
+
+    const requiredFields: (keyof PdiForm)[] = [
+      "defectName",
+      "areaOfDefect",
+      "quantity",
+      "inspector",
+      "severity",
+      "date",
+      "shift",
+      "product",
+    ];
+    requiredFields.forEach((field) => {
+      if (!pdiForm[field]) {
+        errors[field] = "This field is required.";
+      }
+    });
+
+    if (pdiForm.quantity && (isNaN(parseInt(pdiForm.quantity, 10)) || parseInt(pdiForm.quantity, 10) < 0)) {
+      errors.quantity = isNaN(parseInt(pdiForm.quantity, 10)) ? "Quantity must be a valid number." : "Quantity cannot be negative.";
+    }
+
+    if (pdiForm.date && new Date(pdiForm.date) > new Date()) {
+      errors.date = "Date cannot be in the future.";
+    }
 
     if (editingPdiId) {
-      if (pdiCorrectiveActions.length === 0)
-        errors.push("At least one corrective action is required.");
-      if (pdiPreventiveActions.length === 0)
-        errors.push("At least one preventive action is required.");
+      const validateActions = (actions: Action[], type: "pdiCorrectiveActions" | "pdiPreventiveActions") => {
+        if (actions.length === 0) {
+          errors[type] = { general: `At least one ${type.split("pdi")[1].toLowerCase()} action is required.` };
+        } else {
+          const actionErrors: { [index: number]: Partial<Action> } = {};
+          actions.forEach((action, index) => {
+            const err: Partial<Action> = {};
+            if (!action.action) err.action = "This field is required.";
+            if (!action.responsible) err.responsible = "This field is required.";
+            if (!action.dueDate || new Date(action.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
+              err.dueDate = !action.dueDate ? "This field is required." : "Due date cannot be in the past.";
+            }
+            if (Object.keys(err).length > 0) actionErrors[index] = err;
+          });
+          if (Object.keys(actionErrors).length > 0) errors[type] = { ...errors[type], ...actionErrors };
+        }
+      };
 
-      if (
-        pdiCorrectiveActions.some(
-          (a) =>
-            !a.action ||
-            !a.responsible ||
-            !a.dueDate ||
-            new Date(a.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
-        )
-      ) {
-        errors.push("All corrective actions must be complete and have valid due dates.");
-      }
-
-      if (
-        pdiPreventiveActions.some(
-          (a) =>
-            !a.action ||
-            !a.responsible ||
-            !a.dueDate ||
-            new Date(a.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
-        )
-      ) {
-        errors.push("All preventive actions must be complete and have valid due dates.");
-      }
+      validateActions(pdiCorrectiveActions, "pdiCorrectiveActions");
+      validateActions(pdiPreventiveActions, "pdiPreventiveActions");
     }
 
-    if (errors.length > 0) {
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: errors.join(" "),
-      });
-      return errors;
-    }
-    return null;
-  }, [pdiForm, pdiCorrectiveActions, pdiPreventiveActions, editingPdiId, toast]);
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [pdiForm, pdiCorrectiveActions, pdiPreventiveActions, editingPdiId]);
 
-  const handleEditActions = useCallback(
-    (pdi: PdiEntry) => {
-      setEditingPdiId(pdi.pdiId);
-      setPdiForm({
-        productionCode: pdi.productionCode,
-        defectName: pdi.defectName,
-        areaOfDefect: pdi.areaOfDefect,
-        quantity: pdi.quantity.toString(),
-        inspector: pdi.inspector,
-        severity: pdi.severity,
-        date: pdi.date ? format(parseISO(pdi.date), "yyyy-MM-dd") : "",
-        shift: pdi.shift,
-        product: pdi.product,
-      });
-      setPdiCorrectiveActions(
-        pdi.correctiveActions.length > 0
-          ? pdi.correctiveActions.map((action) => ({
-            actionId: action.actionId || generateUUID(),
-            action: action.action,
-            responsible: action.responsible,
-            dueDate: action.dueDate ? format(parseISO(action.dueDate), "yyyy-MM-dd") : "",
-          }))
-          : []
-      );
-      setPdiPreventiveActions(
-        pdi.preventiveActions.length > 0
-          ? pdi.preventiveActions.map((action) => ({
-            actionId: action.actionId || generateUUID(),
-            action: action.action,
-            responsible: action.responsible,
-            dueDate: action.dueDate ? format(parseISO(action.dueDate), "yyyy-MM-dd") : "",
-          }))
-          : []
-      );
-      setIsAddingPDI(true);
-    },
-    []
-  );
+  const handleEditActions = useCallback((pdi: PdiEntry) => {
+    setEditingPdiId(pdi.pdiId);
+    setPdiForm({
+      productionCode: pdi.productionCode,
+      defectName: pdi.defectName,
+      areaOfDefect: pdi.areaOfDefect,
+      quantity: pdi.quantity.toString(),
+      inspector: pdi.inspector,
+      severity: pdi.severity,
+      date: pdi.date ? format(parseISO(pdi.date), "yyyy-MM-dd") : "",
+      shift: pdi.shift,
+      product: pdi.product,
+    });
+    setPdiCorrectiveActions(
+      pdi.correctiveActions.map((action) => ({
+        ...action,
+        actionId: action.actionId || generateUUID(),
+        dueDate: action.dueDate ? format(parseISO(action.dueDate), "yyyy-MM-dd") : "",
+      }))
+    );
+    setPdiPreventiveActions(
+      pdi.preventiveActions.map((action) => ({
+        ...action,
+        actionId: action.actionId || generateUUID(),
+        dueDate: action.dueDate ? format(parseISO(action.dueDate), "yyyy-MM-dd") : "",
+      }))
+    );
+    setIsAddingPDI(true);
+  }, []);
 
   const resetForm = useCallback(() => {
     setPdiForm({
@@ -1667,15 +1718,14 @@ const Downtime = () => {
     setPdiPreventiveActions([]);
     setEditingPdiId(null);
     setError(null);
+    setFormErrors({});
   }, []);
 
   const handleSubmitPDI = useCallback(async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    if (!validateForm()) {
+      toast({ variant: "destructive", title: "Validation Error", description: "Please correct the errors in the form." });
       return;
     }
-
     setIsSubmitting(true);
     try {
       const newEntry = {
@@ -1694,53 +1744,43 @@ const Downtime = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${editingPdiId ? "update" : "save"} PDI entry.`);
+        throw new Error(
+          response.status === 401
+            ? "Session Expired. Please log in again."
+            : `Failed to ${editingPdiId ? "update" : "save"} PDI entry.`
+        );
       }
 
       const savedEntry = await response.json();
-      let validatedEntry: PdiEntry;
-      if (!isValidPdiEntry(savedEntry)) {
-        console.warn(`Invalid API response from ${method}:`, savedEntry);
-        toast({
-          variant: "destructive",
-          title: "Warning",
-          description: "The PDI entry was saved, but the response was invalid. The entry may not be fully updated.",
-        });
-        validatedEntry = {
-          ...newEntry,
-          pdiId: editingPdiId || generateUUID(),
-          correctiveActions: newEntry.correctiveActions.map((action: Action) => ({
-            ...action,
-            actionId: action.actionId || generateUUID(),
-          })),
-          preventiveActions: newEntry.preventiveActions.map((action: Action) => ({
-            ...action,
-            actionId: action.actionId || generateUUID(),
-          })),
-        };
-      } else {
-        validatedEntry = {
-          ...savedEntry,
-          correctiveActions: (savedEntry.correctiveActions || []).map((action: Action) => ({
-            ...action,
-            actionId: action.actionId || generateUUID(),
-          })),
-          preventiveActions: (savedEntry.preventiveActions || []).map((action: Action) => ({
-            ...action,
-            actionId: action.actionId || generateUUID(),
-          })),
-        };
-      }
+      const validatedEntry: PdiEntry = isValidPdiEntry(savedEntry)
+        ? {
+            ...savedEntry,
+            correctiveActions: (savedEntry.correctiveActions || []).map((action: Action) => ({
+              ...action,
+              actionId: action.actionId || generateUUID(),
+            })),
+            preventiveActions: (savedEntry.preventiveActions || []).map((action: Action) => ({
+              ...action,
+              actionId: action.actionId || generateUUID(),
+            })),
+          }
+        : {
+            ...newEntry,
+            pdiId: editingPdiId || generateUUID(),
+            correctiveActions: newEntry.correctiveActions.map((action: Action) => ({
+              ...action,
+              actionId: action.actionId || generateUUID(),
+            })),
+            preventiveActions: newEntry.preventiveActions.map((action: Action) => ({
+              ...action,
+              actionId: action.actionId || generateUUID(),
+            })),
+          };
 
       setPdiData((prev) => {
         const newData = editingPdiId
           ? prev.map((p) => (p.pdiId === editingPdiId ? validatedEntry : p))
           : [...prev, validatedEntry];
-        const uniqueIds = new Set(newData.map((pdi) => pdi.pdiId));
-        if (uniqueIds.size !== newData.length) {
-          console.warn("Duplicate pdiId detected in pdiData:", newData);
-        }
         return newData;
       });
 
@@ -1753,34 +1793,16 @@ const Downtime = () => {
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unexpected error occurred.";
       setError([message]);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: message,
-      });
+      toast({ variant: "destructive", title: "Error", description: message });
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    pdiForm,
-    editingPdiId,
-    pdiCorrectiveActions,
-    pdiPreventiveActions,
-    pdiData,
-    headers,
-    toast,
-    resetForm,
-    validateForm,
-  ]);
+  }, [pdiForm, editingPdiId, pdiCorrectiveActions, pdiPreventiveActions, pdiData, headers, toast, resetForm, validateForm]);
 
   const handleUpdateStatus = useCallback(
-    async (pdiId: string, newStatus: string) => {
+    async (pdiId: string, newStatus: PdiEntry["status"]) => {
       setIsUpdatingStatus(pdiId);
       try {
-        const validStatuses = ["Open", "In Progress", "Closed"];
-        if (!validStatuses.includes(newStatus)) {
-          throw new Error(`Invalid status value: ${newStatus}`);
-        }
         const response = await fetch(`${API_BASE_URL}/api/pdi/${pdiId}`, {
           method: "PATCH",
           headers,
@@ -1788,8 +1810,7 @@ const Downtime = () => {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to update status: HTTP ${response.status}`);
+          throw new Error(`Failed to update status: HTTP ${response.status}`);
         }
 
         const responseData = await response.json();
@@ -1797,19 +1818,11 @@ const Downtime = () => {
           prev.map((p) => (p.pdiId === pdiId ? { ...responseData, status: newStatus } : p))
         );
 
-        toast({
-          title: "Success",
-          description: `Status updated to ${newStatus}.`,
-        });
+        toast({ title: "Success", description: `Status updated to ${newStatus}.` });
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to update status. Please try again.";
+        const message = err instanceof Error ? err.message : "Failed to update status.";
         setError([message]);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: message,
-        });
+        toast({ variant: "destructive", title: "Error", description: message });
       } finally {
         setIsUpdatingStatus(null);
       }
@@ -1832,19 +1845,11 @@ const Downtime = () => {
         }
 
         setPdiData((prev) => prev.filter((p) => p.pdiId !== pdiId));
-        toast({
-          title: "Success",
-          description: "PDI entry deleted successfully.",
-        });
+        toast({ title: "Success", description: "PDI entry deleted successfully." });
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to delete PDI entry. Please try again.";
+        const message = err instanceof Error ? err.message : "Failed to delete PDI entry.";
         setError([message]);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: message,
-        });
+        toast({ variant: "destructive", title: "Error", description: message });
       } finally {
         setIsUpdatingStatus(null);
       }
@@ -1852,83 +1857,62 @@ const Downtime = () => {
     [headers, toast]
   );
 
-  const ActionInputs = React.memo(
-    ({
-      actions,
-      setActions,
-      title,
-    }: {
-      actions: Action[];
-      setActions: React.Dispatch<React.SetStateAction<Action[]>>;
-      title: string;
-    }) => {
-      const getFieldError = (action: Action, field: keyof Action) => {
-        if (field === "dueDate") {
-          return !action[field]
-            ? `${title} ${field} is required.`
-            : new Date(action[field]).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
-              ? "Due date cannot be in the past."
-              : "";
-        }
-        return !action[field] ? `${title} ${field} is required.` : "";
-      };
+  const ActionInputs: React.FC<{
+    actions: Action[];
+    setActions: React.Dispatch<React.SetStateAction<Action[]>>;
+    title: string;
+    errors?: { [index: number]: Partial<Action> };
+  }> = React.memo(({ actions, setActions, title, errors }) => {
+    const [localActionValues, setLocalActionValues] = useState<{ [key: string]: string }>(
+      Object.fromEntries(actions.map((action) => [action.actionId, action.action]))
+    );
 
-      const [localActionValues, setLocalActionValues] = useState<{
-        [key: string]: string;
-      }>(
-        Object.fromEntries(actions.map((action) => [action.actionId, action.action]))
-      );
+    useEffect(() => {
+      setLocalActionValues(Object.fromEntries(actions.map((action) => [action.actionId, action.action])));
+    }, [actions]);
 
-      useEffect(() => {
-        setLocalActionValues(
-          Object.fromEntries(actions.map((action) => [action.actionId, action.action]))
-        );
-      }, [actions]);
+    const handleActionChange = useCallback((id: string, value: string) => {
+      setLocalActionValues((prev) => ({ ...prev, [id]: value }));
+    }, []);
 
-      const handleActionChange = useCallback((id: string, value: string) => {
-        setLocalActionValues((prev) => ({ ...prev, [id]: value }));
-      }, []);
+    const handleActionBlur = useCallback(
+      (index: number, id: string) => {
+        updateAction(index, "action", localActionValues[id] || "", setActions);
+      },
+      [localActionValues, setActions]
+    );
 
-      const handleActionBlur = useCallback(
-        (index: number, id: string) => {
-          updateAction(index, "action", localActionValues[id] || "", setActions);
-        },
-        [localActionValues, setActions, updateAction]
-      );
-
-      return (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <Label className="text-base font-medium">{title}</Label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => addAction(setActions)}
-            >
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <Label className="text-base font-medium">{title}</Label>
+          <Suspense fallback={<div>Loading...</div>}>
+            <Button type="button" variant="outline" size="sm" onClick={() => addAction(setActions)}>
               <Plus className="h-4 w-4 mr-1" />
               Add {title.split(" ")[0]}
             </Button>
-          </div>
-          {actions.map((item, index) => (
-            <div key={item.actionId} className="grid grid-cols-12 gap-2 items-end">
-              <div className="col-span-5">
-                <Label htmlFor={`action-${index}`}>Action</Label>
+          </Suspense>
+        </div>
+        {actions.map((item, index) => (
+          <div key={item.actionId} className="grid grid-cols-12 gap-2 items-end">
+            <div className="col-span-5">
+              <Label htmlFor={`action-${index}`}>Action</Label>
+              <Suspense fallback={<div>Loading...</div>}>
                 <Textarea
                   id={`action-${index}`}
                   value={localActionValues[item.actionId] || ""}
                   onChange={(e) => handleActionChange(item.actionId, e.target.value)}
                   onBlur={() => handleActionBlur(index, item.actionId)}
                   placeholder="Describe the action"
-                  className={`min-h-[60px] ${getFieldError(item, "action") ? "border-red-500" : ""}`}
+                  className={`min-h-[60px] ${errors?.[index]?.action ? "border-red-500" : ""}`}
                   aria-label={`${title} action ${index + 1}`}
                 />
-                {getFieldError(item, "action") && (
-                  <p className="text-red-600 text-sm">{getFieldError(item, "action")}</p>
-                )}
-              </div>
-              <div className="col-span-3">
-                <Label htmlFor={`responsible-${index}`}>Responsible Person</Label>
+              </Suspense>
+              {errors?.[index]?.action && <p className="text-red-600 text-sm">{errors[index].action}</p>}
+            </div>
+            <div className="col-span-3">
+              <Label htmlFor={`responsible-${index}`}>Responsible Person</Label>
+              <Suspense fallback={<div>Loading...</div>}>
                 <Select
                   value={item.responsible}
                   onValueChange={(value) => updateAction(index, "responsible", value, setActions)}
@@ -1944,30 +1928,26 @@ const Downtime = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {getFieldError(item, "responsible") && (
-                  <p className="text-red-600 text-sm">{getFieldError(item, "responsible")}</p>
-                )}
-              </div>
-              <div className="col-span-3">
-                <Label htmlFor={`dueDate-${index}`}>Due Date</Label>
+              </Suspense>
+              {errors?.[index]?.responsible && <p className="text-red-600 text-sm">{errors[index].responsible}</p>}
+            </div>
+            <div className="col-span-3">
+              <Label htmlFor={`dueDate-${index}`}>Due Date</Label>
+              <Suspense fallback={<div>Loading...</div>}>
                 <Input
                   id={`dueDate-${index}`}
                   type="date"
-                  value={
-                    item.dueDate && !isNaN(parseISO(item.dueDate).getTime())
-                      ? format(parseISO(item.dueDate), "yyyy-MM-dd")
-                      : ""
-                  }
+                  value={item.dueDate ? format(parseISO(item.dueDate), "yyyy-MM-dd") : ""}
                   min={new Date().toISOString().split("T")[0]}
                   onChange={(e) => updateAction(index, "dueDate", e.target.value, setActions)}
-                  className={getFieldError(item, "dueDate") ? "border-red-500" : ""}
+                  className={errors?.[index]?.dueDate ? "border-red-500" : ""}
                   aria-label={`${title} due date ${index + 1}`}
                 />
-                {getFieldError(item, "dueDate") && (
-                  <p className="text-red-600 text-sm">{getFieldError(item, "dueDate")}</p>
-                )}
-              </div>
-              <div className="col-span-1">
+              </Suspense>
+              {errors?.[index]?.dueDate && <p className="text-red-600 text-sm">{errors[index].dueDate}</p>}
+            </div>
+            <div className="col-span-1">
+              <Suspense fallback={<div>Loading...</div>}>
                 <Button
                   type="button"
                   variant="outline"
@@ -1978,467 +1958,473 @@ const Downtime = () => {
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
-              </div>
+              </Suspense>
             </div>
-          ))}
-          {actions.length === 0 && (
-            <p className="text-sm text-gray-500">No actions added yet. Click "Add" to start.</p>
-          )}
-        </div>
-      );
-    },
-    [employees, addAction, removeAction, updateAction]
-  );
+          </div>
+        ))}
+        {actions.length === 0 && <p className="text-sm text-gray-500">No actions added yet.</p>}
+      </div>
+    );
+  });
 
-  const PdiItem = React.memo(({ pdi }: { pdi: PdiEntry }) => (
-    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-lg">
-            <Link className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-bold text-blue-900">{pdi.productionCode}</span>
+  const PdiItem: React.FC<{ pdi: PdiEntry }> = React.memo(({ pdi }) => (
+    <Suspense fallback={<div>Loading PDI Item...</div>}>
+      <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-lg">
+              <Link className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-bold text-blue-900">{pdi.productionCode}</span>
+            </div>
+            <h3 className="font-semibold text-lg">{getProductName(pdi.product)}</h3>
+            <Badge variant="outline">{pdi.defectName}</Badge>
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${getSeverityColor(pdi.severity)}`}></div>
+              <span className="text-sm font-medium">{pdi.severity}</span>
+            </div>
           </div>
-          <h3 className="font-semibold text-lg">{getProductName(pdi.product)}</h3>
-          <Badge variant="outline">{pdi.defectName}</Badge>
           <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${getSeverityColor(pdi.severity)}`}></div>
-            <span className="text-sm font-medium">{pdi.severity}</span>
+            <Select
+              value={pdi.status}
+              onValueChange={(value: PdiEntry["status"]) => handleUpdateStatus(pdi.pdiId, value)}
+              disabled={isUpdatingStatus === pdi.pdiId}
+            >
+              <SelectTrigger className={getStatusColor(pdi.status)} aria-label={`Status for PDI entry ${pdi.pdiId}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Open">Open</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => handleDeletePDI(pdi.pdiId)}
+              disabled={isUpdatingStatus === pdi.pdiId}
+              aria-label={`Delete PDI entry ${pdi.pdiId}`}
+            >
+              {isUpdatingStatus === pdi.pdiId ? "Deleting..." : <Trash2 className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Select
-            value={pdi.status}
-            onValueChange={(value) => handleUpdateStatus(pdi.pdiId, value)}
-            disabled={isUpdatingStatus === pdi.pdiId}
-          >
-            <SelectTrigger className={getStatusColor(pdi.status)} aria-label={`Status for PDI entry ${pdi.pdiId}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Open">Open</SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Closed">Closed</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => handleDeletePDI(pdi.pdiId)}
-            disabled={isUpdatingStatus === pdi.pdiId}
-            aria-label={`Delete PDI entry ${pdi.pdiId}`}
-          >
-            {isUpdatingStatus === pdi.pdiId ? "Deleting..." : <Trash2 className="h-4 w-4" />}
-          </Button>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <p className="text-sm font-medium text-blue-800">Date & Shift</p>
+            <p className="text-lg font-bold text-blue-900">
+              {pdi.date && !isNaN(parseISO(pdi.date).getTime()) ? format(parseISO(pdi.date), "yyyy-MM-dd") : "Invalid Date"}
+            </p>
+            <p className="text-sm text-blue-600">Shift {pdi.shift}</p>
+          </div>
+          <div className="bg-red-50 p-3 rounded-lg">
+            <p className="text-sm font-medium text-red-800">Defect Quantity</p>
+            <p className="text-2xl font-bold text-red-900">{pdi.quantity}</p>
+            <p className="text-sm text-red-600">Units affected</p>
+          </div>
+          <div className="bg-green-50 p-3 rounded-lg">
+            <p className="text-sm font-medium text-green-800">Inspector</p>
+            <p className="text-lg font-bold text-green-900">{getEmployeeName(pdi.inspector)}</p>
+            <p className="text-sm text-green-600">Quality inspector</p>
+          </div>
+          <div className="bg-orange-50 p-3 rounded-lg">
+            <p className="text-sm font-medium text-orange-800">Action Required</p>
+            <Button
+              size="sm"
+              className="mt-2 w-full"
+              onClick={() => handleEditActions(pdi)}
+              aria-label={pdi.status === "Open" ? "Update actions for PDI entry" : "View details for PDI entry"}
+            >
+              {pdi.status === "Open" ? "Update Actions" : "View Details"}
+            </Button>
+          </div>
         </div>
       </div>
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <p className="text-sm font-medium text-blue-800">Date & Shift</p>
-          <p className="text-lg font-bold text-blue-900">
-            {pdi.date && !isNaN(parseISO(pdi.date).getTime())
-              ? format(parseISO(pdi.date), "yyyy-MM-dd")
-              : "Invalid Date"}
-          </p>
-          <p className="text-sm text-blue-600">Shift {pdi.shift}</p>
-        </div>
-        <div className="bg-red-50 p-3 rounded-lg">
-          <p className="text-sm font-medium text-red-800">Defect Quantity</p>
-          <p className="text-2xl font-bold text-red-900">{pdi.quantity}</p>
-          <p className="text-sm text-red-600">Units affected</p>
-        </div>
-        <div className="bg-green-50 p-3 rounded-lg">
-          <p className="text-sm font-medium text-green-800">Inspector</p>
-          <p className="text-lg font-bold text-green-900">{getEmployeeName(pdi.inspector)}</p>
-          <p className="text-sm text-green-600">Quality inspector</p>
-        </div>
-        <div className="bg-orange-50 p-3 rounded-lg">
-          <p className="text-sm font-medium text-orange-800">Action Required</p>
-          <Button
-            size="sm"
-            className="mt-2 w-full"
-            onClick={() => handleEditActions(pdi)}
-            aria-label={pdi.status === "Open" ? "Update actions for PDI entry" : "View details for PDI entry"}
-          >
-            {pdi.status === "Open" ? "Update Actions" : "View Details"}
-          </Button>
-        </div>
-      </div>
-    </div>
+    </Suspense>
   ));
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="animate-pulse space-y-2">
-          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+      <Suspense fallback={<div>Loading...</div>}>
+        <div className="space-y-4">
+          <div className="animate-pulse space-y-2">
+            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
         </div>
-      </div>
+      </Suspense>
     );
   }
 
   if (error && pdiData.length === 0) {
     return (
-      <div className="text-center p-4 text-red-600">
-        {error.map((err, index) => (
-          <p key={index}>{err}</p>
-        ))}
-        <Button
-          onClick={() => {
-            setError(null);
-            setIsLoading(true);
-            const fetchData = async () => {
-              try {
-                const [pdiRes, productionRes, employeeRes, defectRes] = await Promise.all([
-                  fetch(`${API_BASE_URL}/api/pdi`, { headers }),
-                  fetch(`${API_BASE_URL}/api/production`, { headers }),
-                  fetch(`${API_BASE_URL}/api/employees`, { headers }),
-                  fetch(`${API_BASE_URL}/api/defects`, { headers }),
-                ]);
+      <Suspense fallback={<div>Loading...</div>}>
+        <div className="text-center p-4 text-red-600">
+          {error.map((err, index) => (
+            <p key={index}>{err}</p>
+          ))}
+          <Button
+            onClick={() => {
+              setError(null);
+              setIsLoading(true);
+              const fetchData = async () => {
+                try {
+                  const [pdiRes, productionRes, employeeRes, defectRes, productRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/pdi`, { headers }),
+                    fetch(`${API_BASE_URL}/api/production`, { headers }),
+                    fetch(`${API_BASE_URL}/api/employees`, { headers }),
+                    fetch(`${API_BASE_URL}/api/defects`, { headers }),
+                    fetch(`${API_BASE_URL}/api/products`, { headers }),
+                  ]);
 
-                const pdiJson = pdiRes.ok ? await pdiRes.json() : [];
-                const normalizedPdiData = Array.isArray(pdiJson)
-                  ? pdiJson
-                    .map((pdi: PdiEntry, index: number) => ({
-                      ...pdi,
-                      pdiId: pdi.pdiId || `generated-${index}-${generateUUID()}`,
-                      correctiveActions: (pdi.correctiveActions || []).map((action: Action) => ({
-                        ...action,
-                        actionId: action.actionId || generateUUID(),
-                      })),
-                      preventiveActions: (pdi.preventiveActions || []).map((action: Action) => ({
-                        ...action,
-                        actionId: action.actionId || generateUUID(),
-                      })),
-                    }))
-                    .filter((pdi, index, self) => {
-                      if (!pdi.pdiId) {
-                        console.warn("PDI entry missing pdiId:", pdi);
-                        return false;
-                      }
-                      const isUnique = self.findIndex((p) => p.pdiId === pdi.pdiId) === index;
-                      if (!isUnique) {
-                        console.warn("Duplicate pdiId detected:", pdi.pdiId, pdi);
-                      }
-                      return isUnique;
-                    })
-                  : [];
-                setPdiData(normalizedPdiData);
+                  const pdiJson = pdiRes.ok ? await pdiRes.json() : [];
+                  const normalizedPdiData = Array.isArray(pdiJson)
+                    ? pdiJson
+                        .map((pdi: PdiEntry, index: number) => ({
+                          ...pdi,
+                          pdiId: pdi.pdiId || `generated-${index}-${generateUUID()}`,
+                          correctiveActions: (pdi.correctiveActions || []).map((action: Action) => ({
+                            ...action,
+                            actionId: action.actionId || generateUUID(),
+                          })),
+                          preventiveActions: (pdi.preventiveActions || []).map((action: Action) => ({
+                            ...action,
+                            actionId: action.actionId || generateUUID(),
+                          })),
+                        }))
+                        .filter((pdi, index, self) => {
+                          if (!pdi.pdiId) return false;
+                          return self.findIndex((p) => p.pdiId === pdi.pdiId) === index;
+                        })
+                    : [];
+                  setPdiData(normalizedPdiData);
 
-                const productionJson = productionRes.ok ? await productionRes.json() : { records: [] };
-                setProductionData(productionJson.records || []);
+                  const productionJson = productionRes.ok ? await productionRes.json() : { records: [] };
+                  setProductionData(productionJson.records || []);
 
-                const employeeJson = employeeRes.ok ? await employeeRes.json() : [];
-                setEmployees(Array.isArray(employeeJson) ? employeeJson : []);
+                  const employeeJson = employeeRes.ok ? await employeeRes.json() : [];
+                  setEmployees(Array.isArray(employeeJson) ? employeeJson : []);
 
-                const defectJson = defectRes.ok ? await defectRes.json() : [];
-                setDefects(Array.isArray(defectJson) ? defectJson : []);
-              } catch (err) {
-                console.error("Error fetching data:", err);
-                setError(["Failed to load some data. Partial data may be displayed."]);
-                toast({
-                  variant: "destructive",
-                  title: "Error",
-                  description: "Failed to load data. Partial data may be displayed.",
-                });
-              } finally {
-                setIsLoading(false);
-              }
-            };
-            fetchData();
-          }}
-          className="ml-4"
-          aria-label="Retry loading PDI data"
-        >
-          Retry
-        </Button>
-      </div>
+                  const defectJson = defectRes.ok ? await defectRes.json() : [];
+                  setDefects(Array.isArray(defectJson) ? defectJson : []);
+
+                  const productJson = productRes.ok ? await productRes.json() : [];
+                  setProducts(Array.isArray(productJson) ? productJson : []);
+                } catch (err) {
+                  setError(["Failed to load data. Partial data may be displayed."]);
+                  toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to load data.",
+                  });
+                } finally {
+                  setIsLoading(false);
+                }
+              };
+              fetchData();
+            }}
+            className="ml-4"
+            aria-label="Retry loading PDI data"
+          >
+            Retry
+          </Button>
+        </div>
+      </Suspense>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">PDI Inspection</h2>
-        <div className="flex items-center space-x-4">
-          <Badge variant="outline" className="text-red-600">
-            {pdiData.filter((pdi) => pdi.status === "Open").length} Open Issues
-          </Badge>
-          <Badge variant="outline" className="text-green-600">
-            <CheckCircle className="h-4 w-4 mr-1" />
-            {pdiData.filter((pdi) => pdi.status === "Closed").length} Resolved
-          </Badge>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger aria-label="Filter by status" className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All</SelectItem>
-              <SelectItem value="Open">Open</SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Closed">Closed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <Card className="border-0 shadow-md">
-        <CardHeader>
+    <ErrorBoundary fallback={<div>Something went wrong. Please try again.</div>}>
+      <Suspense fallback={<div>Loading...</div>}>
+        <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5" />
-              Pre-Delivery Inspection (PDI)
-            </CardTitle>
-            <Dialog
-              open={isAddingPDI}
-              onOpenChange={(open) => {
-                setIsAddingPDI(open);
-                if (!open) resetForm();
-              }}
-            >
-              <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700" aria-label="Add new PDI entry">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add PDI Entry
-                </Button>
-              </DialogTrigger>
-              <DialogContent
-                className="max-w-4xl max-h-[90vh] overflow-y-auto"
-                aria-describedby="dialog-description-text"
-                onOpenAutoFocus={(e) => {
-                  const firstInput = e.currentTarget.querySelector("#areaOfDefect");
-                  firstInput?.focus();
-                }}
-              >
-                <DialogHeader>
-                  <DialogTitle>{editingPdiId ? "Edit PDI Entry" : "Add PDI Entry"}</DialogTitle>
-                  <DialogDescription id="dialog-description-text">
-                    {editingPdiId ? "Update the details of the PDI entry." : "Enter the details for a new PDI entry."}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6 py-4">
-                  {error &&
-                    error.map((item, index) => (
-                      <div
-                        key={index}
-                        role="alert"
-                        className="bg-red-300 p-2 rounded-md text-red-800 text-sm mb-4"
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="defectName">Defect Name</Label>
-                      <Select
-                        value={pdiForm.defectName}
-                        onValueChange={(value) => handleInputChange("defectName", value)}
-                      >
-                        <SelectTrigger aria-label="Select defect name">
-                          <SelectValue placeholder="Select defect" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isLoadingDefects ? (
-                            <div className="text-center py-2">Loading defects...</div>
-                          ) : (
-                            <>
-                              {defects.map((def) => (
-                                <SelectItem key={def.defectId} value={def.name}>
-                                  {def.name}
+            <h2 className="text-2xl font-bold text-gray-900">PDI Inspection</h2>
+            <div className="flex items-center space-x-4">
+              <Badge variant="outline" className="text-red-600">
+                {pdiData.filter((pdi) => pdi.status === "Open").length} Open Issues
+              </Badge>
+              <Badge variant="outline" className="text-green-600">
+                <CheckCircle className="h-4 w-4 mr-1" />
+                {pdiData.filter((pdi) => pdi.status === "Closed").length} Resolved
+              </Badge>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger aria-label="Filter by status" className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Card className="border-0 shadow-md">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  Pre-Delivery Inspection (PDI)
+                </CardTitle>
+                <Dialog
+                  open={isAddingPDI}
+                  onOpenChange={(open) => {
+                    setIsAddingPDI(open);
+                    if (!open) resetForm();
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <Button className="bg-blue-600 hover:bg-blue-700" aria-label="Add new PDI entry">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add PDI Entry
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent
+                    className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto"
+                    aria-describedby="dialog-description-text"
+                    onOpenAutoFocus={(e) => {
+                      const firstInput = e.currentTarget.querySelector("#defectName");
+                      firstInput?.focus();
+                    }}
+                  >
+                    <DialogHeader>
+                      <DialogTitle>{editingPdiId ? "Edit PDI Entry" : "Add PDI Entry"}</DialogTitle>
+                      <DialogDescription id="dialog-description-text">
+                        {editingPdiId ? "Update the details of the PDI entry." : "Enter the details for a new PDI entry."}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                      {error &&
+                        error.map((item, index) => (
+                          <div
+                            key={index}
+                            role="alert"
+                            className="bg-red-300 p-2 rounded-md text-red-800 text-sm mb-4"
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="defectName">Defect Name</Label>
+                          <Select
+                            value={pdiForm.defectName}
+                            onValueChange={(value) => handleInputChange("defectName", value)}
+                          >
+                            <SelectTrigger id="defectName" aria-label="Select defect name">
+                              <SelectValue placeholder="Select defect" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {defects.length > 0 ? (
+                                <>
+                                  {defects.map((def) => (
+                                    <SelectItem key={def.defectId} value={def.name}>
+                                      {def.name}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value="other">Other</SelectItem>
+                                </>
+                              ) : (
+                                <div className="text-center py-2">Loading defects...</div>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {formErrors.defectName && <p className="text-red-500 text-sm">{formErrors.defectName}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="areaOfDefect">Area of Defect</Label>
+                          <Select
+                            value={pdiForm.areaOfDefect}
+                            onValueChange={(value) => handleInputChange("areaOfDefect", value)}
+                          >
+                            <SelectTrigger id="areaOfDefect" aria-label="Select area of defect">
+                              <SelectValue placeholder="Select area of defect" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AREA_OF_DEFECT.map((prod) => (
+                                <SelectItem key={prod.value} value={prod.value}>
+                                  {prod.label}
                                 </SelectItem>
                               ))}
-                              <SelectItem value="other">Other</SelectItem>
-                            </>
+                            </SelectContent>
+                          </Select>
+                          {formErrors.areaOfDefect && <p className="text-red-500 text-sm">{formErrors.areaOfDefect}</p>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="quantity">Quantity</Label>
+                          <Input
+                            id="quantity"
+                            type="number"
+                            value={pdiForm.quantity}
+                            onChange={(e) => handleInputChange("quantity", e.target.value)}
+                            placeholder="Enter quantity"
+                            aria-label="Defect quantity"
+                          />
+                          {formErrors.quantity && <p className="text-red-500 text-sm">{formErrors.quantity}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="inspector">Inspector Name</Label>
+                          <Select
+                            value={pdiForm.inspector}
+                            onValueChange={(value) => handleInputChange("inspector", value)}
+                          >
+                            <SelectTrigger aria-label="Select inspector">
+                              <SelectValue placeholder="Select inspector" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {employees.length > 0 ? (
+                                employees.map((emp) => (
+                                  <SelectItem key={emp.employeeId} value={emp.employeeId}>
+                                    {emp.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <div className="px-2 py-1 text-sm text-gray-500">
+                                  No Employees found.
+                                </div>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {formErrors.inspector && <p className="text-red-500 text-sm">{formErrors.inspector}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="severity">Severity</Label>
+                          <Select
+                            value={pdiForm.severity}
+                            onValueChange={(value) => handleInputChange("severity", value)}
+                          >
+                            <SelectTrigger aria-label="Select severity">
+                              <SelectValue placeholder="Select severity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {formErrors.severity && <p className="text-red-500 text-sm">{formErrors.severity}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="date">Date</Label>
+                          <Input
+                            id="date"
+                            type="date"
+                            value={pdiForm.date}
+                            onChange={(e) => handleInputChange("date", e.target.value)}
+                            max={new Date().toISOString().split("T")[0]}
+                            aria-label="Inspection date"
+                          />
+                          {formErrors.date && <p className="text-red-500 text-sm">{formErrors.date}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="shift">Shift</Label>
+                          <Select
+                            value={pdiForm.shift}
+                            onValueChange={(value) => handleInputChange("shift", value)}
+                          >
+                            <SelectTrigger aria-label="Select shift">
+                              <SelectValue placeholder="Select shift" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="A">Shift A</SelectItem>
+                              <SelectItem value="B">Shift B</SelectItem>
+                              <SelectItem value="C">Shift C</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {formErrors.shift && <p className="text-red-500 text-sm">{formErrors.shift}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Product Name</Label>
+                          <Select
+                            value={pdiForm.product}
+                            onValueChange={(value) => handleInputChange("product", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select product" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {products.length > 0 ? (
+                                products.map((prod) => (
+                                  <SelectItem key={prod.productId} value={prod.productId}>
+                                    {prod.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <div className="text-center py-2 text-gray-500">
+                                  No products found.
+                                </div>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {formErrors.product && <p className="text-red-500 text-sm">{formErrors.product}</p>}
+                        </div>
+                      </div>
+                      {editingPdiId && (
+                        <>
+                          {formErrors.pdiCorrectiveActions?.general && (
+                            <p className="text-red-500 text-sm">{formErrors.pdiCorrectiveActions.general}</p>
                           )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="areaOfDefect">Area of Defect</Label>
-                      <Select
-                        value={pdiForm.areaOfDefect}
-                        onValueChange={(value) => handleInputChange("areaOfDefect", value)}
-                      >
-                        <SelectTrigger id="areaOfDefect" aria-label="Select area of defect">
-                          <SelectValue placeholder="Select area of defect" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {areaOfDefect.map((prod, index) => (
-                            <SelectItem key={index} value={prod.value}>
-                              {prod.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="quantity">Quantity</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        value={pdiForm.quantity}
-                        onChange={(e) => handleInputChange("quantity", e.target.value)}
-                        placeholder="Enter quantity"
-                        aria-label="Defect quantity"
-                        aria-invalid={!!error && !pdiForm.quantity}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="inspector">Inspector Name</Label>
-                        <Select
-                          value={pdiForm.inspector}
-                          onValueChange={(value) => handleInputChange("inspector", value)}
-                        >
-                          <SelectTrigger aria-label="Select inspector">
-                            <SelectValue placeholder="Select inspector" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {employees.length > 0 ? (
-                              employees
-                              .map((emp) => (
-                                <SelectItem key={emp.employeeId} value={emp.employeeId}>
-                                  {emp.name}
-                                </SelectItem>
-                              ))
-                            ): (
-                              <div>No Employees found</div>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="severity">Severity</Label>
-                      <Select
-                        value={pdiForm.severity}
-                        onValueChange={(value) => handleInputChange("severity", value)}
-                      >
-                        <SelectTrigger aria-label="Select severity">
-                          <SelectValue placeholder="Select severity" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={pdiForm.date}
-                        onChange={(e) => handleInputChange("date", e.target.value)}
-                        max={new Date().toISOString().split("T")[0]}
-                        aria-label="Inspection date"
-                        aria-invalid={!!error && !pdiForm.date}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="shift">Shift</Label>
-                      <Select
-                        value={pdiForm.shift}
-                        onValueChange={(value) => handleInputChange("shift", value)}
-                      >
-                        <SelectTrigger aria-label="Select shift">
-                          <SelectValue placeholder="Select shift" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="A">Shift A</SelectItem>
-                          <SelectItem value="B">Shift B</SelectItem>
-                          <SelectItem value="C">Shift C</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Product Name</Label>
-                      <Select
-                        value={pdiForm.product}
-                        onValueChange={(value) => handleInputChange("product", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                        {/* <SelectContent>
-                          {products.map((prod) => (
-                            <SelectItem key={prod.productId} value={prod.productId}>
-                              {prod.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent> */}
-
-                        <SelectContent>
-                          {products.length > 0 ? (
-                            products.map((prod) => (
-                              <SelectItem key={prod.productId} value={prod.productId}>
-                                {prod.name}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <div className="px-2 py-1 text-sm text-gray-500">
-                              No Products found
-                            </div>
+                          <ActionInputs
+                            actions={pdiCorrectiveActions}
+                            setActions={setPdiCorrectiveActions}
+                            title="Corrective Actions"
+                            errors={formErrors.pdiCorrectiveActions}
+                          />
+                          {formErrors.pdiPreventiveActions?.general && (
+                            <p className="text-red-500 text-sm">{formErrors.pdiPreventiveActions.general}</p>
                           )}
-                        </SelectContent>
-
-                      </Select>
+                          <ActionInputs
+                            actions={pdiPreventiveActions}
+                            setActions={setPdiPreventiveActions}
+                            title="Preventive Actions"
+                            errors={formErrors.pdiPreventiveActions}
+                          />
+                        </>
+                      )}
                     </div>
-                  </div>
-                  {editingPdiId && (
-                    <>
-                      <ActionInputs
-                        actions={pdiCorrectiveActions}
-                        setActions={setPdiCorrectiveActions}
-                        title="Corrective Actions"
-                      />
-                      <ActionInputs
-                        actions={pdiPreventiveActions}
-                        setActions={setPdiPreventiveActions}
-                        title="Preventive Actions"
-                      />
-                    </>
-                  )}
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsAddingPDI(false);
-                      resetForm();
-                    }}
-                    aria-label="Cancel PDI entry"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSubmitPDI}
-                    disabled={isSubmitting}
-                    aria-label={editingPdiId ? "Update PDI entry" : "Save PDI entry"}
-                  >
-                    {isSubmitting ? "Saving..." : editingPdiId ? "Update PDI Entry" : "Save PDI Entry"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            {filteredPdiData.length === 0 ? (
-              <div className="text-center py-12">
-                <Clock className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No PDI entries found.</h3>
-                <p className="text-gray-500">Try adjusting your search or filters</p>
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsAddingPDI(false);
+                          resetForm();
+                        }}
+                        aria-label="Cancel PDI entry"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSubmitPDI}
+                        disabled={isSubmitting}
+                        aria-label={editingPdiId ? "Update PDI entry" : "Save PDI entry"}
+                      >
+                        {isSubmitting ? "Saving..." : editingPdiId ? "Update PDI Entry" : "Save PDI Entry"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
-            ) : (
-              filteredPdiData.map((pdi) => <PdiItem key={pdi.pdiId} pdi={pdi} />)
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                {filteredPdiData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Clock className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No PDI entries found.</h3>
+                    <p className="text-gray-500 italic">Try adjusting your search or filters</p>
+                  </div>
+                ) : (
+                  filteredPdiData.map((pdi) => <PdiItem key={pdi.pdiId} pdi={pdi} />)
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Suspense>
+    </ErrorBoundary>
   );
 };
 

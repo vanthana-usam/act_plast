@@ -1,48 +1,52 @@
-
 import express from 'express';
-import sql from 'mssql'; // Assuming you're using mssql for SQL Server
+import sql from 'mssql';
 import executeQuery from '../utils/helper.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // ✅ Get Machines API
-
-router.get('/machines',authMiddleware, async (req, res) => {
+router.get('/machines', authMiddleware, async (req, res) => {
   try {
     const { search } = req.query;
     let query = 'SELECT * FROM Machines WHERE 1=1';
     const params = [];
     if (search) {
-      query += ' AND name LIKE @search';
+      query += ' AND machineName LIKE @search';
       params.push({ name: 'search', type: sql.VarChar, value: `%${search}%` });
     }
     const machines = await executeQuery(query, params);
     res.json(machines);
   } catch (err) {
     console.error('Error fetching machines:', err);
-    res.status(500).json([]); // Return empty array on error
+    res.status(500).json([]); 
   }
 });
 
-
-router.post('/machines', async (req, res) => { 
+// ✅ Add Machine
+router.post('/machines', async (req, res) => {
   try {
     const {
-      name, tieBarDistance, cores, maxMoldHeight, maxDaylight, screwDia, ldRatio,
+      machineName, description, tieBarDistance, cores, maxMoldHeight, maxDaylight, screwDia, ldRatio,
       screwType, shotSize, screwStrokeLength, ejectorStrokeLength, minMoldHeight, hopperCapacity, status
     } = req.body;
+
+    console.log(req.body);
+    
+
     const query = `
       INSERT INTO Machines (
-        name, tieBarDistance, cores, maxMoldHeight, maxDaylight, screwDia, ldRatio,
+        machineName, description, tieBarDistance, cores, maxMoldHeight, maxDaylight, screwDia, ldRatio,
         screwType, shotSize, screwStrokeLength, ejectorStrokeLength, minMoldHeight, hopperCapacity, status
       ) VALUES (
-        @name, @tieBarDistance, @cores, @maxMoldHeight, @maxDaylight, @screwDia, @ldRatio,
+        @machineName, @description, @tieBarDistance, @cores, @maxMoldHeight, @maxDaylight, @screwDia, @ldRatio,
         @screwType, @shotSize, @screwStrokeLength, @ejectorStrokeLength, @minMoldHeight, @hopperCapacity, @status
       )
     `;
+
     await executeQuery(query, [
-      { name: 'name', type: sql.VarChar, value: name },
+      { name: 'machineName', type: sql.VarChar, value: machineName },
+      { name: 'description', type: sql.VarChar, value: description },
       { name: 'tieBarDistance', type: sql.VarChar, value: tieBarDistance },
       { name: 'cores', type: sql.Int, value: cores },
       { name: 'maxMoldHeight', type: sql.Int, value: maxMoldHeight },
@@ -57,6 +61,7 @@ router.post('/machines', async (req, res) => {
       { name: 'hopperCapacity', type: sql.Int, value: hopperCapacity },
       { name: 'status', type: sql.VarChar, value: status }
     ]);
+
     res.status(201).json({ message: 'Machine added successfully' });
   } catch (err) {
     console.error('Error adding machine:', err);
@@ -64,20 +69,19 @@ router.post('/machines', async (req, res) => {
   }
 });
 
-// Update Machine
+// ✅ Update Machine
 router.put('/machines/:machineId', async (req, res) => {
   try {
     const { machineId } = req.params;
     const {
-      name, tieBarDistance, cores, maxMoldHeight, maxDaylight, screwDia, ldRatio,
+      machineName, description, tieBarDistance, cores, maxMoldHeight, maxDaylight, screwDia, ldRatio,
       screwType, shotSize, screwStrokeLength, ejectorStrokeLength, minMoldHeight, hopperCapacity, status
     } = req.body;
 
-    console.log(req.body);
-    
     const query = `
       UPDATE Machines
-      SET name = @name,
+      SET machineName = @machineName,
+          description = @description,
           tieBarDistance = @tieBarDistance,
           cores = @cores,
           maxMoldHeight = @maxMoldHeight,
@@ -96,7 +100,8 @@ router.put('/machines/:machineId', async (req, res) => {
 
     await executeQuery(query, [
       { name: 'machineId', type: sql.UniqueIdentifier, value: machineId },
-      { name: 'name', type: sql.VarChar, value: name },
+      { name: 'machineName', type: sql.VarChar, value: machineName },
+      { name: 'description', type: sql.VarChar, value: description },
       { name: 'tieBarDistance', type: sql.VarChar, value: tieBarDistance },
       { name: 'cores', type: sql.Int, value: cores },
       { name: 'maxMoldHeight', type: sql.Int, value: maxMoldHeight },
@@ -119,7 +124,7 @@ router.put('/machines/:machineId', async (req, res) => {
   }
 });
 
-// Delete Machine
+// ✅ Delete Machine
 router.delete('/machines/:machineId', async (req, res) => {
   try {
     const { machineId } = req.params;
@@ -137,5 +142,4 @@ router.delete('/machines/:machineId', async (req, res) => {
   }
 });
 
-
-export default router; // Export the router to use in your main app file
+export default router;
