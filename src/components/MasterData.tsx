@@ -264,9 +264,6 @@ const MasterData: React.FC = () => {
   >({});
   const itemsPerPage = 10;
 
-    useEffect(()=>{
-    refreshTaskCount();
-  },[])
 
   const [moldForm, setMoldForm] = useState<Partial<Mold>>({
     name: "",
@@ -335,14 +332,24 @@ const MasterData: React.FC = () => {
     status: "Active",
   });
 
-  const employeeGroups = [
-    "Operator",
-    "PDI Inspector",
-    "Production",
-    "Maintenance",
-    "Quality",
-    "HOD",
+  // const employeeGroups = [
+  //   "Operator",
+  //   "PDI Inspector",
+  //   "Production",
+  //   "Maintenance",
+  //   "Quality",
+  //   "HOD",
+  //   "Admin",
+  // ];
+
+    const employeeGroups = [
     "Admin",
+    "Accounts",
+    "Human Resource",
+    "Production",
+    "Quality",
+    "Maintenance",
+    "Purchase",
   ];
 
   const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api`;
@@ -3439,22 +3446,6 @@ const exportConsolidated = useCallback(() => {
                   Employee Master
                 </CardTitle>
                 <div className="flex items-center space-x-2">
-                  {/* <Select
-                    value={selectedGroup}
-                    onValueChange={setSelectedGroup}
-                  >
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Filter by group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Groups</SelectItem>
-                      {employeeGroups.map((group) => (
-                        <SelectItem key={group} value={group}>
-                          {formatEmployeeGroup(group)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select> */}
                   <Dialog
                     open={isAddingEmployee}
                     onOpenChange={(open) => {

@@ -276,4 +276,38 @@ router.delete('/employees/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ✅ Create/Update Tab Permission
+router.post('/tab-permissions', authMiddleware, async (req, res) => {
+  try {
+    const { employeeGroup, tabId, enabled } = req.body;
+    const permissionId = uuidv4();
+
+    if (enabled) {
+      const query = `
+        INSERT INTO TabPermissions (permissionId, employeeGroup, tabId)
+        VALUES (@permissionId, @employeeGroup, @tabId)
+      `;
+      await executeQuery(query, [
+        { name: 'permissionId', type: sql.UniqueIdentifier, value: permissionId },
+        { name: 'employeeGroup', type: sql.NVarChar(50), value: employeeGroup },
+        { name: 'tabId', type: sql.NVarChar(50), value: tabId },
+      ]);
+      res.status(201).json({ message: 'Permission created successfully', permissionId });
+    } else {
+      const query = `
+        DELETE FROM TabPermissions
+        WHERE employeeGroup = @employeeGroup AND tabId = @tabId
+      `;
+      await executeQuery(query, [
+        { name: 'employeeGroup', type: sql.NVarChar(50), value: employeeGroup },
+        { name: 'tabId', type: sql.NVarChar(50), value: tabId },
+      ]);
+      res.status(200).json({ message: 'Permission removed successfully' });
+    }
+  } catch (err) {
+    console.error('❌ Error updating tab permission:', err);
+    res.status(500).json({ error: 'Failed to update tab permission', details: err.message });
+  }
+});
+
 export default router;

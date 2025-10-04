@@ -34,52 +34,69 @@ import ReportsSection from '@/components/ReportsSection';
 import MOMManagement from '@/components/MOMManagement';
 import TaskManagement from '@/components/TaskManagement';
 import Dashboard from '@/components/Dashboard';
+import PreventiveMaintenance from '@/components/PreventiveMaintenance';
 import { useAuth } from '@/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useTaskContext } from '@/TaskContext';
+
+// Inside Index.jsx
 
 const Index = () => {
   const [activeView, setActiveView] = useState("dashboard");
   const { logout, user, token } = useAuth(); 
   const navigate = useNavigate();
-
   const { taskCount } = useTaskContext();
+
+  console.log(user?.employeeGroup);
+  
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
 
-  const dashboardStats = [
-    { title: 'Overall OEE', value: '87.5%', icon: TrendingUp, color: 'bg-green-500' },
-    { title: 'Active Machines', value: '12/15', icon: Factory, color: 'bg-blue-500' },
-    { title: 'Pending Tasks', value: taskCount.toString(), icon: CheckSquare, color: 'bg-orange-500' },
-    { title: 'PDI Issues', value: '2', icon: AlertTriangle, color: 'bg-red-500' },
+  // ✅ All available menu items
+  const allMenuItems = [
+    { id: 'dashboard', title: 'Dashboard', icon: BarChart3 },
+    { id: 'production', title: 'Production', icon: Factory },
+    { id: 'pdi', title: 'PDI Inspection', icon: AlertTriangle },
+    { 
+      id: 'tasks', 
+      title: (
+        <span className="flex items-center">
+          Tasks 
+          <span className="ml-2 text-sm font-medium text-red-600 bg-red-100 p-1 px-2 rounded-full">
+            {taskCount > 0 ? taskCount : 0}
+          </span>
+        </span>
+      ), 
+      icon: CheckSquare 
+    },
+    { id: 'preventivemaintenance', title: 'Preventive Maintenance', icon: Settings },
+    { id: 'reports', title: 'Reports', icon: ClipboardList },
+    { id: 'mom', title: 'MOM', icon: FileText },
+    { id: 'masters', title: 'Masters', icon: Settings },
   ];
 
-const menuItems = [
-  { id: 'dashboard', title: 'Dashboard', icon: BarChart3 },
-  { id: 'production', title: 'Production', icon: Factory },
-  { id: 'pdi', title: 'PDI Inspection', icon: AlertTriangle },
-  { 
-    id: 'tasks', 
-    title: (
-      <span className="flex items-center">
-        Tasks 
-        <span className="ml-2 text-sm font-medium text-red-600 bg-red-100 p-1 px-2 rounded-full">
-          {taskCount > 0 ? taskCount : 0}
-        </span>
-      </span>
-    ), 
-    icon: CheckSquare 
-  },
-  { id: 'reports', title: 'Reports', icon: ClipboardList },
-  { id: 'mom', title: 'MOM', icon: FileText },
-  { id: 'masters', title: 'Masters', icon: Settings },
-];
+  // ✅ Department → Allowed menu IDs mapping
+  const departmentAccess = {
+    "Accounts": ['dashboard', 'reports'],
+    "Human-Resource": ['dashboard', 'tasks', 'mom'],
+    "Production": ['dashboard', 'production', 'tasks', 'reports'],
+    "Quality": ['dashboard', 'pdi', 'reports','tasks'],
+    "Maintenance": ['dashboard', 'production', 'pdi', 'tasks'],
+    "Purchanse": ['dashboard', 'tasks', 'reports'],
+    "admin": allMenuItems.map(item => item.id), // Full access
+  };
 
+  // ✅ Get allowed menu items for current user
+  const allowedMenuIds = departmentAccess[user?.employeeGroup] || ['dashboard'];
+  const menuItems = allMenuItems.filter(item => allowedMenuIds.includes(item.id));
 
   const renderContent = () => {
+    if (!allowedMenuIds.includes(activeView)) {
+      return <Dashboard />; // fallback if user tries to access unauthorized view
+    }
     switch (activeView) {
       case 'dashboard':
         return <Dashboard />;
@@ -93,6 +110,8 @@ const menuItems = [
         return <MOMManagement />;
       case 'tasks':
         return <TaskManagement />;
+      case 'preventivemaintenance':
+        return <PreventiveMaintenance />;
       case 'masters':
         return <MasterData />;
       default:
@@ -186,5 +205,6 @@ const menuItems = [
     </SidebarProvider>
   );
 };
+
 
 export default Index;

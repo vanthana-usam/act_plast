@@ -73,9 +73,6 @@ const Dashboard: React.FC = () => {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
-    useEffect(()=>{
-    refreshTaskCount();
-  },[])
 
   // ================== Fetch dashboard data ==================
   useEffect(() => {

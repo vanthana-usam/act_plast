@@ -159,13 +159,13 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        {process.env.NODE_ENV === "development" && (
+        {/* {process.env.NODE_ENV === "development" && ( */}
           <div className="bg-yellow-100 rounded-lg mt-5 w-max p-2">
             <p className="text-sm text-yellow-700">
               Test login → Email: <b>admin@sample.com</b> | Password: <b>admin!pass</b>
             </p>
           </div>
-        )}
+        {/* )} */}
       </div>
     </div>
   );

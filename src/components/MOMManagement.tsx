@@ -174,11 +174,6 @@ const MOMManagement: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(()=>{
-  refreshTaskCount();
-},[])
-
-
   const parseDate = useCallback((dateStr: string): string => {
     try {
       const date = new Date(dateStr);
