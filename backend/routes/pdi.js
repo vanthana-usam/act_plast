@@ -99,9 +99,6 @@ router.post('/pdi', async (req, res) => {
       status = 'Open', severity, correctiveActions = [], preventiveActions = []
     } = req.body;
 
-    console.log("pdi bacnd log", req.body);
-    
-
     // Validate status
     if (!VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: `Invalid status value. Must be one of: ${VALID_STATUSES.join(', ')}` });

@@ -2,8 +2,6 @@ import React, { useState } from "react";
 import { useAuth } from "@/AuthContext";
 import { useNavigate } from "react-router-dom";
 
-console.log("API Base URL:", import.meta.env.VITE_API_BASE_URL);
-
 // Use environment variable or fallback
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";

@@ -1,5 +1,5 @@
 import express from 'express';
-import executeQuery from '../utils/helper.js'; // Import the helper function
+import { executeQuery } from '../utils/helper.js'; // Import the helper function
 const router = express.Router();
 import authMiddleware from '../middleware/authMiddleware.js';
 

@@ -184,10 +184,7 @@ const rejectionTypes = ["Startup", "In Process", "Re Startup"];
 const ProductionTracking: React.FC = React.memo(() => {
   const { token, logout } = useAuth();
 
-  // console.log(token);
-  
-  
-  const { refreshTaskCount } = useTaskContext();
+  const { refreshTaskCount, incrementTaskCount } = useTaskContext();
   const { toast } = useToast();
 
   // State declarations
@@ -974,9 +971,6 @@ const ProductionTracking: React.FC = React.memo(() => {
       customDefectType: formData.defectType === "other" ? formData.customDefectType || null : null,
     };
 
-    console.log("newRecord",newRecord);
-    
-
     setIsSubmitting(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/production`, {
@@ -984,6 +978,10 @@ const ProductionTracking: React.FC = React.memo(() => {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(newRecord),
       });
+
+      if(response.ok){
+        incrementTaskCount();
+      }
 
       if (response.status === 401) {
         logout();
@@ -1018,11 +1016,10 @@ const ProductionTracking: React.FC = React.memo(() => {
         setFilterStatus("all");
         setFilterProductionType("all");
       }
-      await fetchProductionData();
-      refreshTaskCount();
-    console.log("Refrech tasj count called in Production page");
-
-
+      // await fetchProductionData();
+      // refreshTaskCount();
+      // Fetch server data to reconcile
+        await Promise.all([fetchProductionData(), refreshTaskCount()]);
       toast({ title: "Success", description: "Production record added successfully." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: `Failed to submit record: ${err.message}` });
@@ -1042,6 +1039,8 @@ const ProductionTracking: React.FC = React.memo(() => {
     token,
     formInitialState,
     correctiveActions,
+    refreshTaskCount,
+    incrementTaskCount
   ]);
 
   // Export to CSV

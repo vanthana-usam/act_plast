@@ -1,6 +1,6 @@
 import express from 'express';
 import sql from 'mssql';
-import executeQuery from '../utils/helper.js';
+import { executeQuery } from '../utils/helper.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -30,9 +30,6 @@ router.post('/machines', async (req, res) => {
       machineName, description, tieBarDistance, cores, maxMoldHeight, maxDaylight, screwDia, ldRatio,
       screwType, shotSize, screwStrokeLength, ejectorStrokeLength, minMoldHeight, hopperCapacity, status
     } = req.body;
-
-    console.log(req.body);
-    
 
     const query = `
       INSERT INTO Machines (

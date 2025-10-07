@@ -1,6 +1,6 @@
 import express from 'express';
 // configured mssql pool
-import executeQuery from '../utils/helper.js'; // Import the helper function
+import { executeQuery } from '../utils/helper.js'; // Import the helper function
 const router = express.Router();
 
 

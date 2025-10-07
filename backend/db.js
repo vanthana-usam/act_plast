@@ -3,7 +3,14 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-console.log(process.env.DB_USER,process.env.DB_SERVER , process.env.DB_NAME)
+// Validate environment variables
+const requiredEnvVars = ['DB_USER', 'DB_PASSWORD', 'DB_SERVER', 'DB_NAME'];
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingVars.length > 0) {
+  console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`);
+  process.exit(1);
+}
+
 const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -11,8 +18,8 @@ const dbConfig = {
   database: process.env.DB_NAME,
   port: 1433,
   options: {
-    encrypt: false,
-    trustServerCertificate: true,
+    encrypt: process.env.DB_ENCRYPT === 'true',
+    trustServerCertificate: process.env.NODE_ENV !== 'production',
   },
 };
 
@@ -20,7 +27,7 @@ const dbConfig = {
 const poolPromise = new sql.ConnectionPool(dbConfig)
   .connect()
   .then(pool => {
-    console.log("✅ Connected to MS SQL Server 192.168.1.158");
+    console.log(`✅ Connected to MS SQL Server ${dbConfig.server}:${dbConfig.port}`);
     return pool;
   })
   .catch(err => {

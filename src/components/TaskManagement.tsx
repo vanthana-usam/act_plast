@@ -117,7 +117,7 @@ interface ApiTask {
 const TaskManagement: React.FC = () => {
   const { token, user } = useAuth();
   const { toast } = useToast();
-  const { refreshTaskCount } = useTaskContext();
+  const { refreshTaskCount, incrementTaskCount, decrementTaskCount } = useTaskContext();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -415,77 +415,83 @@ const TaskManagement: React.FC = () => {
     setUpdateForm((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleCreateTask = useCallback(async () => {
-  if (!validateCreateForm()) {
-    toast({
-      variant: "destructive",
-      title: "Validation Error",
-      description: "Please correct the errors in the form before submitting.",
-    });
-    return;
-  }
-
-  setIsCreating(true);
-  try {
-    const response = await fetch(`${API_URL}/api/tasks`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        ...createForm,
-        productionCode: createForm.productionCode || undefined,
-        quantity: createForm.quantity ? parseInt(createForm.quantity, 10) : undefined,
-      }),
-    });
-
-    if (response.ok) {
-      setIsAddingTask(false);
-      setCreateForm({
-        title: "",
-        taskType: "",
-        priority: "",
-        assignedTo: "",
-        dueDate: "",
-        productionCode: "",
-        description: "",
-        rejectionReason: "",
-        quantity: "",
-        maintenanceType: "",
-        equipment: "",
-      });
-      setCreateFormErrors({});
-      setError(null);
+const handleCreateTask = useCallback(async () => {
+    if (!validateCreateForm()) {
       toast({
-        title: "Success",
-        description: "Task created successfully.",
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please correct the errors in the form before submitting.",
       });
-      console.log("TaskManagement: Calling refreshTaskCount after create");
-      refreshTaskCount(); // Ensure this is called
-      await fetchInitialData();
-    } else {
-      const errorData = await response.json();
-      const errorMessage = errorData.message || errorData.error || "Failed to create task.";
+      return;
+    }
+
+    setIsCreating(true);
+    // Optimistically increment task count
+    // incrementTaskCount();
+    try {
+      const response = await fetch(`${API_URL}/api/tasks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...createForm,
+          productionCode: createForm.productionCode || undefined,
+          quantity: createForm.quantity ? parseInt(createForm.quantity, 10) : undefined,
+        }),
+      });
+
+      if (response.ok) {
+        incrementTaskCount();
+        setIsAddingTask(false);
+        setCreateForm({
+          title: "",
+          taskType: "",
+          priority: "",
+          assignedTo: "",
+          dueDate: "",
+          productionCode: "",
+          description: "",
+          rejectionReason: "",
+          quantity: "",
+          maintenanceType: "",
+          equipment: "",
+        });
+        setCreateFormErrors({});
+        setError(null);
+        toast({
+          title: "Success",
+          description: "Task created successfully.",
+        });
+        // Fetch server data to reconcile
+        await Promise.all([fetchInitialData(), refreshTaskCount()]);
+      } else {
+        // Revert optimistic update on failure
+        decrementTaskCount();
+        const errorData = await response.json();
+        const errorMessage = errorData.message || errorData.error || "Failed to create task.";
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: errorMessage,
+        });
+      }
+    } catch (err) {
+      // Revert optimistic update on error
+      decrementTaskCount();
+      const errorMessage = err instanceof Error ? err.message : "Failed to create task.";
       setError(errorMessage);
       toast({
         variant: "destructive",
         title: "Error",
         description: errorMessage,
       });
+    } finally {
+      setIsCreating(false);
     }
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Failed to create task.";
-    setError(errorMessage);
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description: errorMessage,
-    });
-  } finally {
-    setIsCreating(false);
-  }
-}, [createForm, token, toast, fetchInitialData, validateCreateForm, refreshTaskCount]);
+  }, [createForm, token, toast, fetchInitialData, validateCreateForm, refreshTaskCount, incrementTaskCount, decrementTaskCount]);
 
 
   const handleUpdateTask = useCallback((task: Task) => {
@@ -572,96 +578,57 @@ const TaskManagement: React.FC = () => {
     setSelectedTaskForDeletion(task);
   }, []);
 
-  // const confirmDeleteTask = useCallback(async () => {
-  //   if (!selectedTaskForDeletion) return;
+const confirmDeleteTask = useCallback(async () => {
+    if (!selectedTaskForDeletion) return;
 
-  //   setIsDeleting(true);
-  //   try {
-  //     const response = await fetch(`${API_URL}/api/tasks/${selectedTaskForDeletion.taskId}`, {
-  //       method: "DELETE",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-
-  //     if (response.ok) {
-  //       setTasks((prev) => prev.filter((task) => task.taskId !== selectedTaskForDeletion.taskId));
-  //       setError(null);
-  //       toast({
-  //         title: "Success",
-  //         description: "Task deleted successfully.",
-  //       });
-  //     } else {
-  //       const errorData = await response.json();
-  //       const errorMessage = errorData.message || errorData.error || "Failed to delete task.";
-  //       setError(errorMessage);
-  //       toast({
-  //         variant: "destructive",
-  //         title: "Error",
-  //         description: errorMessage,
-  //       });
-  //     }
-  //   } catch (err) {
-  //     const errorMessage = err instanceof Error ? err.message : "Failed to delete task.";
-  //     setError(errorMessage);
-  //     toast({
-  //       variant: "destructive",
-  //       title: "Error",
-  //       description: errorMessage,
-  //     });
-  //   } finally {
-  //     setIsDeleting(false);
-  //     setSelectedTaskForDeletion(null);
-  //   }
-  // }, [selectedTaskForDeletion, token, toast]);
-
-  const confirmDeleteTask = useCallback(async () => {
-  if (!selectedTaskForDeletion) return;
-
-  setIsDeleting(true);
-  try {
-    const response = await fetch(`${API_URL}/api/tasks/${selectedTaskForDeletion.taskId}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      setTasks((prev) => prev.filter((task) => task.taskId !== selectedTaskForDeletion.taskId));
-      setSelectedTaskForDeletion(null);
-      setError(null);
-      toast({
-        title: "Success",
-        description: "Task deleted successfully.",
+    setIsDeleting(true);
+    // Optimistically decrement task count
+    decrementTaskCount();
+    try {
+      const response = await fetch(`${API_URL}/api/tasks/${selectedTaskForDeletion.taskId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       });
-      console.log("TaskManagement: Calling refreshTaskCount after delete");
-      refreshTaskCount(); // Ensure this is called
-    } else {
-      const errorData = await response.json();
-      const errorMessage = errorData.message || errorData.error || "Failed to delete task.";
+
+      if (response.ok) {
+        setTasks((prev) => prev.filter((task) => task.taskId !== selectedTaskForDeletion.taskId));
+        setSelectedTaskForDeletion(null);
+        setError(null);
+        toast({
+          title: "Success",
+          description: "Task deleted successfully.",
+        });
+        // Fetch server data to reconcile
+        await refreshTaskCount();
+      } else {
+        // Revert optimistic update on failure
+        incrementTaskCount();
+        const errorData = await response.json();
+        const errorMessage = errorData.message || errorData.error || "Failed to delete task.";
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: errorMessage,
+        });
+      }
+    } catch (err) {
+      // Revert optimistic update on error
+      incrementTaskCount();
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete task.";
       setError(errorMessage);
       toast({
         variant: "destructive",
         title: "Error",
         description: errorMessage,
       });
+    } finally {
+      setIsDeleting(false);
     }
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Failed to delete task.";
-    setError(errorMessage);
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description: errorMessage,
-    });
-  } finally {
-    setIsDeleting(false);
-  }
-}, [selectedTaskForDeletion, token, toast, refreshTaskCount]);
-
+  }, [selectedTaskForDeletion, token, toast, refreshTaskCount, incrementTaskCount, decrementTaskCount]);
 
   const handleExportCSV = useCallback(() => {
     const headers = [
@@ -1356,7 +1323,14 @@ const TaskManagement: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
                           <span className="text-gray-600">Due Date:</span>
-                          <span className="font-medium">{format(new Date(task.dueDate), "yyyy-MM-dd")}</span>
+                          {/* <span className="font-medium">{format(new Date(task.dueDate), "yyyy-MM-dd")}</span> */}
+                          <span className="font-medium">
+                            {task.dueDate ? (
+                              format(new Date(task.dueDate), "yyyy-MM-dd")
+                            ) : (
+                              <span className="text-gray-500">No due date is available</span>
+                            )}
+                          </span>
                         </div>
                         {task.productionCode && (
                           <div className="flex items-center space-x-2">

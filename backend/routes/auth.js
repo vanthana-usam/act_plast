@@ -70,7 +70,7 @@ import express from 'express';
 import sql from 'mssql';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import executeQuery from '../utils/helper.js';
+import { executeQuery } from '../utils/helper.js';
 
 const router = express.Router();
 

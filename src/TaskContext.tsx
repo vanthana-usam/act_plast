@@ -1,3 +1,4 @@
+// FINAL CODE TaskContext.tsx
 import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { useAuth } from "./AuthContext";
 
@@ -10,6 +11,8 @@ interface Task {
 interface TaskContextType {
   taskCount: number;
   refreshTaskCount: () => void;
+  incrementTaskCount: () => void; // New function for optimistic create
+  decrementTaskCount: () => void; // New function for optimistic delete
   isLoading: boolean;
   error: string | null;
 }
@@ -25,30 +28,31 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
   const fetchTaskCount = useCallback(async () => {
-    // console.log("TaskContext: fetchTaskCount called, user:", user?.id, user?.employeeGroup);
     setIsLoading(true);
     setError(null);
+
     if (!token) {
-      // console.log("TaskContext: No token, skipping fetch");
       setIsLoading(false);
       return;
     }
+
     try {
       const response = await fetch(`${API_URL}/api/tasks`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // console.log("TaskContext: API response status:", response.status);
       if (!response.ok) throw new Error("Failed to fetch tasks");
-      const data = await response.json();
-      // console.log("TaskContext: Raw API data length:", Array.isArray(data) ? data.length : 0);
-      const filteredData = user?.employeeGroup?.toLowerCase() === "admin"
+
+      const data: Task[] = await response.json();
+
+      const userGroup = user?.employeeGroup?.toLowerCase();
+      const filteredData = userGroup === "admin"
         ? data
-        : data.filter((task: Task) =>
+        : data.filter(task =>
             task.assignedTo === user?.id ||
-            task.assignedTeam?.toLowerCase() === user?.employeeGroup?.toLowerCase()
+            task.assignedTeam?.toLowerCase() === userGroup
           );
-      // console.log("TaskContext: Filtered data length:", Array.isArray(filteredData) ? filteredData.length : 0);
-      setTaskCount(Array.isArray(filteredData) ? filteredData.length : 0);
+
+      setTaskCount(filteredData.length);
       setError(null);
     } catch (err) {
       console.error("TaskContext: Error fetching tasks:", err);
@@ -56,16 +60,25 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(err instanceof Error ? err.message : "Failed to fetch tasks");
     } finally {
       setIsLoading(false);
-      // console.log("TaskContext: fetchTaskCount completed, taskCount:", taskCount);
     }
-  }, [token, user, taskCount]); // Include taskCount for logging
+  }, [token, user]);
+
+  // Optimistic increment for task creation
+  const incrementTaskCount = useCallback(() => {
+    setTaskCount(prev => prev + 1);
+  }, []);
+
+  // Optimistic decrement for task deletion
+  const decrementTaskCount = useCallback(() => {
+    setTaskCount(prev => Math.max(0, prev - 1));
+  }, []);
 
   useEffect(() => {
     fetchTaskCount();
   }, [fetchTaskCount]);
 
   return (
-    <TaskContext.Provider value={{ taskCount, refreshTaskCount: fetchTaskCount, isLoading, error }}>
+    <TaskContext.Provider value={{ taskCount, refreshTaskCount: fetchTaskCount, incrementTaskCount, decrementTaskCount, isLoading, error }}>
       {children}
     </TaskContext.Provider>
   );

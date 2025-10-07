@@ -13,6 +13,7 @@ const allTabs = [
   { id: "reports", label: "Reports" },
   { id: "mom", label: "MOM" },
   { id: "masters", label: "Masters" },
+  { id: "preventivemaintenance", label: "Preventive Maintenance" },
 ];
 
 const TabPermissions = () => {
@@ -35,14 +36,31 @@ const TabPermissions = () => {
   //   fetchGroups();
   // }, []);
 
-      const employeeGroups = [
+  //     const employeeGroups = [
+  //   "Admin",
+  //   "Accounts",
+  //   "Human Resource",
+  //   "Production",
+  //   "Quality",
+  //   "Maintenance",
+  //   "Purchase",
+  // ];
+
+  const employeeGroups = [
     "Admin",
-    "Accounts",
+    "Finance & Accounts",
+    "Material Planning",
     "Human Resource",
     "Production",
     "Quality",
     "Maintenance",
     "Purchase",
+    "Paint Shop",
+    "Assembly Shop",
+    "Operations",
+    "Purchase",
+    "Safety & Security",
+    "Stores"
   ];
 
   

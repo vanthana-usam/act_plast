@@ -1,3 +1,5 @@
+// FINAL CODE
+
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { debounce } from "lodash";
@@ -103,6 +105,9 @@ const PreventiveMaintenance: React.FC = () => {
     if (preventiveForm.dueDate && new Date(preventiveForm.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
       errors.dueDate = "Due date cannot be in the past.";
     }
+    if (preventiveForm.description.length > 1000) {
+      errors.description = "Description cannot exceed 1000 characters.";
+    }
     setPreventiveFormErrors(errors);
     return Object.keys(errors).length === 0;
   }, [preventiveForm]);
@@ -114,7 +119,12 @@ const PreventiveMaintenance: React.FC = () => {
     if (preventiveUpdateForm.dueDate && new Date(preventiveUpdateForm.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
       errors.dueDate = "Due date cannot be in the past.";
     }
-    if (!preventiveUpdateForm.status) errors.status = "Status is required";
+    if (preventiveUpdateForm.description.length > 1000) {
+      errors.description = "Description cannot exceed 1000 characters.";
+    }
+    if (!preventiveUpdateForm.status || !["pending", "in progress", "completed"].includes(preventiveUpdateForm.status)) {
+      errors.status = "Status must be one of: pending, in progress, completed";
+    }
     setPreventiveUpdateFormErrors(errors);
     return Object.keys(errors).length === 0;
   }, [preventiveUpdateForm]);
@@ -134,45 +144,58 @@ const PreventiveMaintenance: React.FC = () => {
     []
   );
 
-  // Fetch with retry mechanism
-  const fetchWithRetry = useCallback(async (url: string, options: RequestInit, retries = 3): Promise<any> => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(url, options);
-        console.log("fetch with retry response", response);
-        
-        const contentType = response.headers.get("content-type");
-        if (!contentType?.includes("application/json")) {
-          const text = await response.text();
-          throw new Error(`Expected JSON, received ${contentType}: ${text.slice(0, 100)}...`);
-        }
-        if (!response.ok) {
-          throw new Error(`HTTP error ${response.status}`);
-        }
-        return await response.json().catch(() => {
-          throw new Error("Failed to parse JSON response");
-        });
-      } catch (err) {
-        if (i === retries - 1) throw err;
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
-      }
-    }
-    throw new Error("Max retries reached");
-  }, []);
-
   // Fetch initial data
   const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-      const preventiveRecords = await fetchWithRetry(`${API_URL}/api/preventive-maintenance`, { headers });
-      setPreventiveRecords(preventiveRecords);
+      const response = await fetch(`${API_URL}/api/preventive-maintenance`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        throw new Error("Unauthorized: Invalid or expired token");
+      }
+      if (!response.ok) {
+        const text = await response.text();
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(text);
+          throw new Error(errorDetails.error || errorDetails.details || `HTTP error ${response.status}`);
+        } catch {
+          throw new Error(`HTTP error ${response.status}: ${text}`);
+        }
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.includes("application/json")) {
+        throw new Error(`Expected JSON, received ${contentType}`);
+      }
+
+      const preventiveRecordsData = await response.json();
+
+      // Check response format
+      if (!preventiveRecordsData.success) {
+        throw new Error(preventiveRecordsData.error || 'Request failed');
+      }
+      if (!Array.isArray(preventiveRecordsData.data)) {
+        console.warn('⚠️ Invalid data format:', preventiveRecordsData.data);
+        setPreventiveRecords([]);
+        return;
+      }
+
+      setPreventiveRecords(
+        preventiveRecordsData.data.map((rec: PreventiveRecord) => ({
+          ...rec,
+          Status: rec.Status.charAt(0).toUpperCase() + rec.Status.slice(1).toLowerCase(),
+        }))
+      );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load data.";
+      console.error('❌ Fetch error:', errorMessage);
       setError(errorMessage);
       toast({
         variant: "destructive",
@@ -182,14 +205,14 @@ const PreventiveMaintenance: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [token, toast, fetchWithRetry]);
+  }, [token, toast]);
 
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
 
   const getStatusColor = useCallback((status: string) => {
-    return statusColors[status.toLowerCase()] || statusColors.default;
+    return statusColors[status] || statusColors.default;
   }, [statusColors]);
 
   const formatStatus = useCallback((status: string) => {
@@ -219,9 +242,7 @@ const PreventiveMaintenance: React.FC = () => {
 
     setIsCreating(true);
     try {
-      console.log("Sending request to:", `${API_URL}/api/preventive-maintenance`);
-
-      const response = await fetchWithRetry(`${API_URL}/api/preventive-maintenance`, {
+      const response = await fetch(`${API_URL}/api/preventive-maintenance`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -234,6 +255,25 @@ const PreventiveMaintenance: React.FC = () => {
         }),
       });
 
+      if (response.status === 401) {
+        throw new Error("Unauthorized: Invalid or expired token");
+      }
+      if (!response.ok) {
+        const text = await response.text();
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(text);
+          throw new Error(errorDetails.details || errorDetails.error || `HTTP error ${response.status}`);
+        } catch {
+          throw new Error(`HTTP error ${response.status}: ${text}`);
+        }
+      }
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.includes("application/json")) {
+        throw new Error(`Expected JSON, received ${contentType}`);
+      }
+
+      await response.json(); // Consume response
       setIsAddingPreventive(false);
       setPreventiveForm({
         equipmentType: "",
@@ -255,12 +295,12 @@ const PreventiveMaintenance: React.FC = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: errorMessage,
+        description: user?.employeeGroup?.toLowerCase() === "admin" ? errorMessage : "Failed to create record. Please try again or contact support.",
       });
     } finally {
       setIsCreating(false);
     }
-  }, [preventiveForm, token, toast, validatePreventiveForm, refreshTaskCount, fetchInitialData, fetchWithRetry]);
+  }, [preventiveForm, token, toast, validatePreventiveForm, refreshTaskCount, fetchInitialData]);
 
   const handleUpdatePreventive = useCallback((rec: PreventiveRecord) => {
     setSelectedPreventive(rec);
@@ -269,7 +309,7 @@ const PreventiveMaintenance: React.FC = () => {
       equipmentType: rec.EquipmentType,
       dueDate: rec.DueDate ? format(new Date(rec.DueDate), "yyyy-MM-dd") : "",
       description: rec.Description,
-      status: rec.Status,
+      status: rec.Status.toLowerCase(),
     });
   }, []);
 
@@ -287,21 +327,42 @@ const PreventiveMaintenance: React.FC = () => {
 
     setIsUpdating(true);
     try {
-      const response = await fetchWithRetry(`${API_URL}/api/preventive-maintenance/${selectedPreventive.Id}`, {
+      const payload = {
+        EquipmentType: preventiveUpdateForm.equipmentType,
+        DueDate: preventiveUpdateForm.dueDate || null,
+        Description: preventiveUpdateForm.description || "",
+        Status: preventiveUpdateForm.status,
+        CompletedAt: preventiveUpdateForm.status === "completed" ? new Date().toISOString() : null,
+      };
+      const response = await fetch(`${API_URL}/api/preventive-maintenance/${selectedPreventive.Id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          EquipmentType: preventiveUpdateForm.equipmentType,
-          DueDate: preventiveUpdateForm.dueDate || null,
-          Description: preventiveUpdateForm.description || "",
-          Status: preventiveUpdateForm.status,
-          CompletedAt: preventiveUpdateForm.status === "completed" ? new Date().toISOString() : null,
-        }),
+        body: JSON.stringify(payload),
       });
 
+      if (response.status === 401) {
+        throw new Error("Unauthorized: Invalid or expired token");
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(text);
+          throw new Error(errorDetails.errors ? errorDetails.errors.map((e: any) => e.msg).join(", ") : errorDetails.error || `HTTP error ${response.status}`);
+        } catch {
+          throw new Error(`HTTP error ${response.status}: ${text}`);
+        }
+      }
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.includes("application/json")) {
+        throw new Error(`Expected JSON, received ${contentType}`);
+      }
+
+      await response.json(); // Consume response
       setIsUpdatingPreventive(false);
       setSelectedPreventive(null);
       setPreventiveUpdateFormErrors({});
@@ -317,12 +378,12 @@ const PreventiveMaintenance: React.FC = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: errorMessage,
+        description: user?.employeeGroup?.toLowerCase() === "admin" ? errorMessage : "Failed to update record. Please try again or contact support.",
       });
     } finally {
       setIsUpdating(false);
     }
-  }, [selectedPreventive, preventiveUpdateForm, token, toast, fetchInitialData, validatePreventiveUpdateForm, fetchWithRetry]);
+  }, [selectedPreventive, preventiveUpdateForm, token, toast, fetchInitialData, validatePreventiveUpdateForm]);
 
   const handleDeletePreventive = useCallback((rec: PreventiveRecord) => {
     setSelectedPreventiveForDeletion(rec);
@@ -333,12 +394,26 @@ const PreventiveMaintenance: React.FC = () => {
 
     setIsDeleting(true);
     try {
-      await fetchWithRetry(`${API_URL}/api/preventive-maintenance/${selectedPreventiveForDeletion.Id}`, {
+      const response = await fetch(`${API_URL}/api/preventive-maintenance/${selectedPreventiveForDeletion.Id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      if (response.status === 401) {
+        throw new Error("Unauthorized: Invalid or expired token");
+      }
+      if (!response.ok) {
+        const text = await response.text();
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(text);
+          throw new Error(errorDetails.details || errorDetails.error || `HTTP error ${response.status}`);
+        } catch {
+          throw new Error(`HTTP error ${response.status}: ${text}`);
+        }
+      }
 
       setPreventiveRecords((prev) => prev.filter((rec) => rec.Id !== selectedPreventiveForDeletion.Id));
       setSelectedPreventiveForDeletion(null);
@@ -354,12 +429,12 @@ const PreventiveMaintenance: React.FC = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: errorMessage,
+        description: user?.employeeGroup?.toLowerCase() === "admin" ? errorMessage : "Failed to delete record. Please try again or contact support.",
       });
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedPreventiveForDeletion, token, toast, refreshTaskCount, fetchWithRetry]);
+  }, [selectedPreventiveForDeletion, token, toast, refreshTaskCount]);
 
   const filteredRecords = useMemo(() => {
     let records = preventiveRecords;
@@ -397,9 +472,9 @@ const PreventiveMaintenance: React.FC = () => {
 
     filteredRecords.forEach((task) => {
       const status = task.Status?.toLowerCase();
-      if (status === "Pending") stats.pending++;
-      if (status === "In Progress") stats.inProgress++;
-      if (status === "Completed") stats.completed++;
+      if (status === "pending") stats.pending++;
+      if (status === "in progress") stats.inProgress++;
+      if (status === "completed") stats.completed++;
     });
 
     return stats;
@@ -428,7 +503,7 @@ const PreventiveMaintenance: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Task Management</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Preventive Maintenance</h2>
         <div className="flex space-x-2">
           <Dialog open={isAddingPreventive} onOpenChange={setIsAddingPreventive}>
             <DialogTrigger asChild>
@@ -520,6 +595,7 @@ const PreventiveMaintenance: React.FC = () => {
                   variant="outline"
                   onClick={() => {
                     setIsAddingPreventive(false);
+                    setPreventiveForm({ equipmentType: "", dueDate: "", description: "" });
                     setPreventiveFormErrors({});
                     setError(null);
                   }}
@@ -748,10 +824,10 @@ const PreventiveMaintenance: React.FC = () => {
                 Previous
               </Button>
               <span aria-live="polite">
-                Page {currentPage} of {totalPages}
+                {filteredRecords.length === 0 ? "No records" : `Page ${currentPage} of ${totalPages}`}
               </span>
               <Button
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || filteredRecords.length === 0}
                 onClick={() => setCurrentPage((prev) => prev + 1)}
                 aria-label="Go to next page"
               >
@@ -853,9 +929,9 @@ const PreventiveMaintenance: React.FC = () => {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
               {preventiveUpdateFormErrors.status && (
@@ -902,7 +978,11 @@ const PreventiveMaintenance: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
-          <p>Are you sure you want to delete this preventive maintenance record?</p>
+          <p>
+            Are you sure you want to delete the preventive maintenance record for{" "}
+            <strong>{selectedPreventiveForDeletion?.EquipmentType}</strong> with description{" "}
+            <em>{selectedPreventiveForDeletion?.Description || "N/A"}</em>?
+          </p>
           <div className="flex justify-end space-x-2">
             <Button
               variant="outline"

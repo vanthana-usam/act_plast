@@ -69,6 +69,9 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState<number>(0);
   const [taskFilter, setTaskFilter] = useState<string>("all");
+  const [productionRecords, setProductionRecords] = useState<any[]>([]);
+  const [oeeData, setOeeData] = useState<any[]>([]);
+  const [averageOee, setAverageOee] = useState<number>(0);
   const maxRetries = 3;
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -123,19 +126,62 @@ const Dashboard: React.FC = () => {
     return () => controller.abort();
   }, [retryCount, token]);
 
+
+   // Fetch production records
+  useEffect(() => {
+    const fetchProduction = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/production`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error("Failed to fetch production data");
+        const data = await res.json();
+        setProductionRecords(data.data?.records || []);
+      } catch (err) {
+        console.error("Production fetch error:", err);
+      }
+    };
+    fetchProduction();
+  }, [token]);
+
+  // Compute OEE
+  useEffect(() => {
+    if (!productionRecords.length) return;
+    const oee = productionRecords.map(rec => {
+      const availableMins = rec.plannedMins - rec.downtime;
+      const machinePerf = availableMins / rec.plannedMins;
+      const producedQty = rec.actualQty + rec.rejectedQty;
+      const productionPerf = producedQty / rec.plannedQty;
+      const okQty = rec.actualQty - rec.rejectedQty;
+      const qualityPerf = okQty / producedQty;
+      const oeeValue = machinePerf * productionPerf * qualityPerf;
+      return {
+        machine: rec.machineName,
+        oee: parseFloat((oeeValue * 100).toFixed(1)),
+        availability: parseFloat((machinePerf * 100).toFixed(1)),
+        performance: parseFloat((productionPerf * 100).toFixed(1)),
+        quality: parseFloat((qualityPerf * 100).toFixed(1)),
+      };
+    });
+    setOeeData(oee);
+    const avg = oee.length ? parseFloat((oee.reduce((sum, r) => sum + r.oee, 0) / oee.length).toFixed(1)) : 0;
+    setAverageOee(avg);
+  }, [productionRecords]);
+
+
+
   // ================== Dashboard Statistics ==================
   const dashboardStats = useMemo(
     () => [
+      // {
+      //   title: "Overall OEE",
+      //   value: "87.5%",
+      //   icon: TrendingUp,
+      //   color: "bg-green-500",
+      // },
+       { title: "Overall OEE", value: `${averageOee}%`, icon: TrendingUp, color: averageOee > 85 ? "bg-green-500" : averageOee > 70 ? "bg-yellow-500" : "bg-red-500" },
       {
-        title: "Overall OEE",
-        value: "87.5%",
-        icon: TrendingUp,
-        color: "bg-green-500",
-      },
-      {
-        title: "Active Machines",
+        title: "Running Machines",
         value: `${
-          dashboardData.machines.filter((m) => m.status === "active").length
+          dashboardData.machines.filter((m) => m.status === "Running").length
         }/${dashboardData.machines.length}`,
         color: "bg-blue-500",
         icon: Factory,

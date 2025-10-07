@@ -1,6 +1,6 @@
 import express from 'express';
 import sql from 'mssql'; // Assuming you're using mssql for SQL Server
-import executeQuery from '../utils/helper.js';
+import { executeQuery } from '../utils/helper.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();

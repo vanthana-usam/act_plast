@@ -342,14 +342,31 @@ const MasterData: React.FC = () => {
   //   "Admin",
   // ];
 
+  //   const employeeGroups = [
+  //   "Admin",
+  //   "Accounts",
+  //   "Human Resource",
+  //   "Production",
+  //   "Quality",
+  //   "Maintenance",
+  //   "Purchase",
+  // ];
+
     const employeeGroups = [
     "Admin",
-    "Accounts",
+    "Finance & Accounts",
+    "Material Planning",
     "Human Resource",
     "Production",
     "Quality",
     "Maintenance",
     "Purchase",
+    "Paint Shop",
+    "Assembly Shop",
+    "Operations",
+    "Purchase",
+    "Safety & Security",
+    "Stores"
   ];
 
   const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api`;
